@@ -217,7 +217,7 @@ async def root(request: Request):
     user = _get_user(request)
     if not user:
         return RedirectResponse("/login", status_code=303)
-    return RedirectResponse("/feed", status_code=303)
+    return RedirectResponse("/home", status_code=303)
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -581,3 +581,28 @@ async def bot_status(request: Request):
         "next_run": next_run,
         "last_cycle": _last_cycle.isoformat() if _last_cycle else None,
     })
+
+
+# ── eBay Marketplace Account Deletion webhook ─────────────────────────────────
+# Exigido pelo eBay para liberar chaves de Produção (GDPR compliance).
+# GET  → challenge/response para verificar o endpoint
+# POST → notificação de deleção (ignoramos — não armazenamos dados de usuários eBay)
+
+_EBAY_VERIFICATION_TOKEN = "hunter-master-ebay-verify-2026"
+_EBAY_ENDPOINT_URL = "https://{railway_domain}/ebay/account-deletion"
+
+
+@app.get("/ebay/account-deletion")
+async def ebay_challenge(challenge_code: str = ""):
+    import hashlib
+    domain = settings.railway_public_domain or "hunter-master.up.railway.app"
+    endpoint_url = f"https://{domain}/ebay/account-deletion"
+    raw = challenge_code + _EBAY_VERIFICATION_TOKEN + endpoint_url
+    challenge_response = hashlib.sha256(raw.encode()).hexdigest()
+    return JSONResponse({"challengeResponse": challenge_response})
+
+
+@app.post("/ebay/account-deletion")
+async def ebay_deletion_notification(request: Request):
+    # Não armazenamos dados de usuários eBay — apenas confirmamos recebimento
+    return JSONResponse({"status": "received"}, status_code=200)

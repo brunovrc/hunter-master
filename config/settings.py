@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     ml_client_id: str = ""
     ml_client_secret: str = ""
 
-    ebay_app_id: str = ""  # eBay Developer App ID — registrar em developer.ebay.com (grátis)
+    ebay_app_id: str = ""
+    railway_public_domain: str = ""  # ex: hunter-master.up.railway.app
 
     evolution_api_url: str = ""       # ex: https://evolution-xxx.railway.app
     evolution_api_key: str = ""       # AUTHENTICATION_API_KEY do Railway

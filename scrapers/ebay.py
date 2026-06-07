@@ -13,11 +13,7 @@ from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-FINDING_API_PROD    = "https://svcs.ebay.com/services/search/FindingService/v1"
-FINDING_API_SANDBOX = "https://svcs.sandbox.ebay.com/services/search/FindingService/v1"
-
-# Troca para FINDING_API_PROD quando a chave de Produção for aprovada
-FINDING_API = FINDING_API_SANDBOX
+FINDING_API = "https://svcs.ebay.com/services/search/FindingService/v1"
 
 # USD → BRL (jun/2026)
 USD_TO_BRL = 5.75
