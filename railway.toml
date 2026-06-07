@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 
 [deploy]
 startCommand = "python main.py"
-healthcheckPath = "/feed"
+healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

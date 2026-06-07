@@ -152,6 +152,11 @@ def _rec_badge(rec: str) -> dict:
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     user = _get_user(request)
