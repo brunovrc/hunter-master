@@ -35,11 +35,11 @@ logger = logging.getLogger("hunter_master")
 scrapers = [
     MercadoLivreScraper(),
     MercadoLivreArgentinaScraper(),
-    EnjoeiScraper(),
     OLXScraper(),
     ShopeeScraper(),
-    EbayScraper(),
-    VintedScraper(),
+    # EnjoeiScraper(),  # pausado — retorna catálogo inteiro sem filtro temporal
+    # VintedScraper(),  # pausado — 3 países × 14 termos × 96 itens = muito volume
+    # EbayScraper(),
 ]
 
 stats = {
@@ -69,6 +69,17 @@ async def _process_listing(listing: dict):
     global stats
     stats["scraped"] += 1
 
+    # Dedup ANTES de qualquer chamada de AI — itens já vistos são descartados sem custo
+    external_id = listing.get("external_id", "")
+    if external_id:
+        async with AsyncSessionLocal() as session:
+            from sqlalchemy import select as sa_select
+            existing = (await session.execute(
+                sa_select(Listing.id).where(Listing.external_id == external_id).limit(1)
+            )).first()
+            if existing:
+                return
+
     flags = check_red_flags(listing)
     if has_critical_flag(flags):
         return
@@ -89,8 +100,6 @@ async def _process_listing(listing: dict):
     is_autographed = extracted.get("is_autographed", False)
     is_match_worn = extracted.get("is_match_worn", False)
 
-    # Se o título declara autógrafo/match worn, confia para fins de precificação.
-    # A IA rejeita fakes antes disso — aqui só queremos o preço correto.
     title_lower = (listing.get("title") or "").lower()
     _AUTO_SIGNALS = ["autografad", "autógrafo", "autografo", "autograf",
                      "assinad", " signed ", "autographed", "signe"]
@@ -119,14 +128,7 @@ async def _process_listing(listing: dict):
     raw_images = listing.get("images", [])
     images_json = json.dumps(raw_images) if isinstance(raw_images, list) else "[]"
 
-    external_id = listing.get("external_id", "")
     async with AsyncSessionLocal() as session:
-        from sqlalchemy import select as sa_select
-        existing = (await session.execute(
-            sa_select(Listing.id).where(Listing.external_id == external_id).limit(1)
-        )).first()
-        if existing:
-            return
 
         filters_json = json.dumps([
             {"name": f.name, "score": f.score, "max_score": f.max_score,
