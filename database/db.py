@@ -29,20 +29,28 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    if _is_sqlite:
-        await _sqlite_migrations()
+    await _run_migrations()
 
 
-async def _sqlite_migrations():
-    """Migrações de colunas novas — somente SQLite (Postgres usa create_all)."""
-    migrations = [
-        "ALTER TABLE listings ADD COLUMN purchased BOOLEAN DEFAULT 0",
-        "ALTER TABLE listings ADD COLUMN purchased_at DATETIME",
-        "ALTER TABLE listings ADD COLUMN purchase_notes TEXT",
-        "ALTER TABLE listings ADD COLUMN discarded BOOLEAN DEFAULT 0",
-    ]
+# Colunas novas adicionadas ao longo do tempo.
+# ADD COLUMN IF NOT EXISTS funciona em PostgreSQL 9.6+ e SQLite 3.35+.
+_NEW_COLUMNS = [
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS purchased BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMP",
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS purchase_notes TEXT",
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS discarded BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS filters_json TEXT",
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS reasoning TEXT",
+    "ALTER TABLE listings ADD COLUMN IF NOT EXISTS suggested_offer FLOAT",
+]
+
+_SQLITE_NEW_COLUMNS = [s.replace(" IF NOT EXISTS", "") for s in _NEW_COLUMNS]
+
+
+async def _run_migrations():
+    stmts = _SQLITE_NEW_COLUMNS if _is_sqlite else _NEW_COLUMNS
     async with engine.begin() as conn:
-        for sql in migrations:
+        for sql in stmts:
             try:
                 await conn.execute(text(sql))
             except Exception:

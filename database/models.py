@@ -36,7 +36,10 @@ class Listing(Base):
     is_match_worn = Column(Boolean, default=False)
     has_coa = Column(Boolean, default=False)
 
-    red_flags = Column(Text)  # JSON
+    red_flags = Column(Text)   # JSON list[{code, description}]
+    filters_json = Column(Text)  # JSON list[{name, score, max_score, status, detail}]
+    reasoning = Column(Text)
+    suggested_offer = Column(Float, nullable=True)
     notified = Column(Boolean, default=False)
 
     # Dedup cross-platform: hash do título normalizado

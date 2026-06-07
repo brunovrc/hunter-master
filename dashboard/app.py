@@ -116,6 +116,17 @@ def _parse_images(raw: Optional[str]) -> list[str]:
         return []
 
 
+def _parse_filters(raw: Optional[str]) -> list:
+    if not raw:
+        return []
+    try:
+        from types import SimpleNamespace
+        data = json.loads(raw)
+        return [SimpleNamespace(**f) for f in data] if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
 def _listing_to_dict(l: Listing) -> dict:
     images = _parse_images(l.images)
     return {
@@ -126,6 +137,7 @@ def _listing_to_dict(l: Listing) -> dict:
         "recommendation": l.recommendation or "",
         "gross_margin": l.gross_margin,
         "sell_price_estimate": l.sell_price_estimate,
+        "suggested_offer": l.suggested_offer,
         "platform": l.platform or "",
         "url": l.url or "",
         "player_name": l.player_name or "",
@@ -137,6 +149,8 @@ def _listing_to_dict(l: Listing) -> dict:
         "discarded": l.discarded,
         "created_at": l.created_at,
         "notified": l.notified,
+        "reasoning": l.reasoning or "",
+        "filters_data": _parse_filters(l.filters_json),
     }
 
 

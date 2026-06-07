@@ -128,6 +128,16 @@ async def _process_listing(listing: dict):
         if existing:
             return
 
+        filters_json = json.dumps([
+            {"name": f.name, "score": f.score, "max_score": f.max_score,
+             "status": f.status, "detail": f.detail}
+            for f in report.filters
+        ])
+        red_flags_json = json.dumps([
+            {"code": f.code, "description": f.description}
+            for f in report.red_flags
+        ])
+
         db_listing = Listing(
             external_id=external_id,
             platform=listing.get("platform", ""),
@@ -144,6 +154,10 @@ async def _process_listing(listing: dict):
             is_match_worn=is_match_worn,
             has_coa=extracted.get("has_coa", False),
             title_hash=listing.get("title_hash", ""),
+            filters_json=filters_json,
+            red_flags=red_flags_json,
+            reasoning=report.reasoning,
+            suggested_offer=report.suggested_offer,
         )
         session.add(db_listing)
         await session.commit()
