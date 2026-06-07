@@ -38,8 +38,8 @@ scrapers = [
     VintedScraper(),
     ShopeeScraper(),
     EbayScraper(),
-    # OLXScraper(),    # Playwright sem timestamp — sem filtro de idade confiável
-    # EnjoeiScraper(), # Playwright sem timestamp — sem filtro de idade confiável
+    OLXScraper(),
+    EnjoeiScraper(),
 ]
 
 stats = {
