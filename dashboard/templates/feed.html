@@ -18,55 +18,58 @@
     </a>
   </div>
 
-  <!-- Filtros por recomendação -->
-  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-    {% set rec_filters = [
-      ('all',      'Todos',    '#fff',    '#141416','#2a2a2e'),
-      ('buy',      'Comprar',  '#4ade80','rgba(34,197,94,.1)','rgba(34,197,94,.25)'),
-      ('negotiate','Negociar', '#fbbf24','rgba(234,179,8,.1)','rgba(234,179,8,.25)'),
-      ('flag',     'Verificar','#fb923c','rgba(249,115,22,.1)','rgba(249,115,22,.25)'),
-    ] %}
-    {% for f_key, f_label, f_color, f_bg, f_border in rec_filters %}
-    <a href="/feed?filter={{ f_key }}&category={{ category }}&period={{ period }}"
-       style="display:inline-flex;align-items:center;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid;transition:all .15s;
-              {% if filter == f_key %}color:{{ f_color }};background:{{ f_bg }};border-color:{{ f_border }};{% else %}color:#71717a;background:transparent;border-color:#2a2a2e;{% endif %}">
-      {{ f_label }}
-    </a>
-    {% endfor %}
-  </div>
+  <!-- Barra de filtros unificada -->
+  <div style="background:#111113;border:1px solid #1f1f23;border-radius:14px;padding:10px 14px;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
 
-  <!-- Filtros por categoria -->
-  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-    {% set cat_filters = [
-      ('all',        '🌍 Todos'),
-      ('selecao_br', '🇧🇷 Seleção BR'),
-      ('selecao_arg','🇦🇷 Seleção ARG'),
-      ('times_br',   '⚽ Times BR'),
-      ('times_eur',  '🏟 Times EUR'),
-      ('nba',        '🏀 NBA'),
-    ] %}
-    {% for c_key, c_label in cat_filters %}
-    <a href="/feed?filter={{ filter }}&category={{ c_key }}&period={{ period }}"
-       style="display:inline-flex;align-items:center;padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:600;text-decoration:none;border:1px solid;transition:all .15s;
-              {% if category == c_key %}color:#fde047;background:rgba(253,224,71,.1);border-color:rgba(253,224,71,.3);{% else %}color:#71717a;background:transparent;border-color:#2a2a2e;{% endif %}">
-      {{ c_label }}
-    </a>
-    {% endfor %}
-  </div>
+      <!-- Esquerda: tabs de recomendação -->
+      <div style="display:flex;background:#0c0c0e;border-radius:10px;padding:3px;gap:1px;">
+        {% set rec_items = [
+          ('all',       'Todos',     '#a1a1aa'),
+          ('buy',       '✓ Comprar', '#4ade80'),
+          ('negotiate', '↕ Negociar','#fbbf24'),
+          ('flag',      '🔍 Verificar','#fb923c'),
+        ] %}
+        {% for f_key, f_label, f_color in rec_items %}
+        <a href="/feed?filter={{ f_key }}&category={{ category }}&period={{ period }}"
+           style="padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;white-space:nowrap;
+                  {% if filter == f_key %}background:#1c1c1f;color:{{ f_color }};box-shadow:0 1px 4px rgba(0,0,0,.5);{% else %}color:#3f3f46;{% endif %}">
+          {{ f_label }}
+        </a>
+        {% endfor %}
+      </div>
 
-  <!-- Filtros por período -->
-  <div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-    <span style="font-size:11px;color:#3f3f46;font-weight:600;letter-spacing:.04em;">PERÍODO</span>
-    {% set period_filters = [
-      ('all', 'Tudo'),('hoje','Hoje'),('3d','3 dias'),('7d','7 dias'),('30d','30 dias'),
-    ] %}
-    {% for p_key, p_label in period_filters %}
-    <a href="/feed?filter={{ filter }}&category={{ category }}&period={{ p_key }}"
-       style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:11.5px;font-weight:600;text-decoration:none;border:1px solid;transition:all .15s;
-              {% if period == p_key %}color:#a78bfa;background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);{% else %}color:#52525b;background:transparent;border-color:#2a2a2e;{% endif %}">
-      {{ p_label }}
-    </a>
-    {% endfor %}
+      <!-- Direita: categoria + período -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+
+        <!-- Dropdown de categoria -->
+        <div style="position:relative;">
+          <select id="cat-select" onchange="applyCategory(this.value)"
+                  style="appearance:none;-webkit-appearance:none;background:#1a1a1d;border:1px solid #2a2a2e;border-radius:8px;padding:6px 30px 6px 11px;color:#d4d4d8;font-size:12px;font-weight:600;cursor:pointer;outline:none;font-family:inherit;transition:border-color .15s;"
+                  onfocus="this.style.borderColor='#3f3f46'" onblur="this.style.borderColor='#2a2a2e'">
+            <option value="all"        {% if category=='all' %}selected{% endif %}>🌍 Todas</option>
+            <option value="selecao_br" {% if category=='selecao_br' %}selected{% endif %}>🇧🇷 Seleção BR</option>
+            <option value="selecao_arg"{% if category=='selecao_arg' %}selected{% endif %}>🇦🇷 Seleção ARG</option>
+            <option value="times_br"   {% if category=='times_br' %}selected{% endif %}>⚽ Times BR</option>
+            <option value="times_eur"  {% if category=='times_eur' %}selected{% endif %}>🏟 Times EUR</option>
+            <option value="nba"        {% if category=='nba' %}selected{% endif %}>🏀 NBA</option>
+          </select>
+          <svg style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:#52525b;" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+
+        <!-- Segmented control de período -->
+        <div style="display:flex;background:#0c0c0e;border-radius:8px;padding:2px;gap:1px;">
+          {% for p_key, p_label in [('all','Tudo'),('hoje','Hoje'),('3d','3d'),('7d','7d'),('30d','30d')] %}
+          <a href="/feed?filter={{ filter }}&category={{ category }}&period={{ p_key }}"
+             style="padding:5px 10px;border-radius:6px;font-size:11.5px;font-weight:600;text-decoration:none;transition:all .15s;white-space:nowrap;
+                    {% if period == p_key %}background:#1c1c1f;color:#a78bfa;box-shadow:0 1px 4px rgba(0,0,0,.5);{% else %}color:#3f3f46;{% endif %}">
+            {{ p_label }}
+          </a>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
   </div>
 
   <!-- Grid -->
@@ -267,6 +270,12 @@
 
 {% block scripts %}
 <script>
+  function applyCategory(val) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('category', val);
+    url.searchParams.set('page', '1');
+    window.location.href = url.toString();
+  }
   function openBuyModal(id, price) {
     document.getElementById('buy-id').value = id;
     document.getElementById('buy-price').value = price;

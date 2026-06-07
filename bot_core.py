@@ -14,7 +14,7 @@ from config.nba import find_nba_player
 from config.players import get_player_or_default
 from config.settings import settings
 from database.db import AsyncSessionLocal
-from database.models import Listing
+from database.models import Listing, RunLog
 from database.price_monitor import add_to_watch, check_price_drops
 from database.price_tracker import get_sell_price_estimate
 from database.rarity_index import get_rarity_score, update_rarity_index
@@ -219,9 +219,62 @@ async def _process_listing(listing: dict):
         )
 
 
+_COLLECTOR_SIGNALS = [
+    # Autógrafo
+    "autografad", "autógrafo", "autografo", "autograf", "assinad", "firmad",
+    "signed", "autographed", "signe",
+    # Match worn
+    "match worn", "usada em jogo", "usada no jogo", "player worn", "game worn",
+    "match issue", "player issue",
+    # Certificação
+    "coa", "psa", "beckett", "jsa", "certificad", "hologram", "holograma",
+    # Era/vintage
+    "retrô", "retro", "vintage", "anos 80", "anos 90", "anos 70",
+    "1970", "1971", "1972", "1973", "1974", "1975", "1976", "1977", "1978", "1979",
+    "1980", "1981", "1982", "1983", "1984", "1985", "1986", "1987", "1988", "1989",
+    "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999",
+    "2000", "2001", "2002", "2003", "2004", "2005", "2006",
+    # Competições históricas
+    "copa do mundo", "world cup", "copa america", "copa america",
+    "champions league", "eurocopa", "libertadores",
+    # Jogadores icônicos
+    "pelé", "pele", "maradona", "zico", "sócrates", "socrates",
+    "romário", "romario", "ronaldo fenômeno", "ronaldinho", "cafu",
+    "roberto carlos", "garrincha", "rivaldo", "bebeto",
+    "messi", "neymar", "cristiano", "cr7", "ronaldo r9",
+    "michael jordan", "kobe", "lebron", "magic johnson", "larry bird",
+    "scottie pippen", "shaquille", "shaq",
+    # Termos colecionador
+    "edição limitada", "limited edition", "rara", "raro", "colecionável",
+    "original", "autentic", "authentic", "elenco", "squad signed",
+]
+
+
+def _has_collector_signal(listing: dict) -> bool:
+    """Pré-filtro barato (CPU-only). False = não vale chamar a AI."""
+    title = (listing.get("title") or "").lower()
+    price = listing.get("price", 0) or 0
+    if price < 80:
+        return False
+    return any(s in title for s in _COLLECTOR_SIGNALS)
+
+
 async def run_hunter_cycle():
     logger.info("=== Hunter cycle iniciado ===")
     cycle_new = 0
+    cycle_opps_start = stats.get("opportunities", 0)
+
+    # Registra início no RunLog
+    run_log_id = None
+    try:
+        async with AsyncSessionLocal() as session:
+            run_log = RunLog(started_at=datetime.utcnow(), status="running", listings_scraped=0)
+            session.add(run_log)
+            await session.commit()
+            await session.refresh(run_log)
+            run_log_id = run_log.id
+    except Exception as e:
+        logger.warning(f"[RunLog] Erro ao criar: {e}")
 
     for scraper in scrapers:
         listings = await scraper.run()
@@ -230,6 +283,9 @@ async def run_hunter_cycle():
 
         for listing in listings:
             try:
+                if not _has_collector_signal(listing):
+                    logger.debug(f"[Skip] Sem sinal colecionador: {listing.get('title', '')[:50]}")
+                    continue
                 await _process_listing(listing)
             except Exception as e:
                 logger.error(f"Erro ao processar {listing.get('id')}: {e}")
@@ -242,8 +298,28 @@ async def run_hunter_cycle():
     except Exception as e:
         logger.error(f"Erro no price monitor: {e}")
 
+    cycle_opps = stats.get("opportunities", 0) - cycle_opps_start
+
+    # Atualiza RunLog com resultado
+    if run_log_id:
+        try:
+            async with AsyncSessionLocal() as session:
+                from sqlalchemy import select as sa_select
+                run = (await session.execute(
+                    sa_select(RunLog).where(RunLog.id == run_log_id)
+                )).scalar_one_or_none()
+                if run:
+                    run.finished_at = datetime.utcnow()
+                    run.listings_scraped = cycle_new
+                    run.opportunities_found = cycle_opps
+                    run.status = "ok"
+                    await session.commit()
+        except Exception as e:
+            logger.warning(f"[RunLog] Erro ao atualizar: {e}")
+
     logger.info(
-        f"=== Cycle concluído: {cycle_new} novos | "
+        f"=== Cycle concluído: {cycle_new} brutos | "
+        f"{cycle_opps} oportunidades | "
         f"{stats['buy']} COMPRAR | {stats['negotiate']} NEGOCIAR ==="
     )
 

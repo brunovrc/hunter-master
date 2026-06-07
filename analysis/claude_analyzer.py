@@ -178,13 +178,30 @@ async def _call_anthropic_vision(images_b64: list[tuple[str, str]], prompt: str,
     return msg.content[0].text
 
 
+# Só vale chamar AI se o item reivindica autógrafo, COA ou match worn.
+# Itens retro sem essas flags → mock (sem custo de token).
+_NEEDS_AI_SIGNALS = [
+    "autografad", "autógrafo", "autografo", "autograf", "assinad", "firmad",
+    "signed", "autographed", "signe",
+    "match worn", "usada em jogo", "usada no jogo", "player worn", "game worn", "match issue",
+    "coa", "psa", "beckett", "jsa", "certificad", "sb brasil", "fabricks",
+]
+
+
 async def extract_listing_data(listing: dict) -> dict:
     if _mock_mode():
         return _mock_extract(listing)
 
+    # Sem sinal de autógrafo/COA → não vale o custo de AI
+    title_lower = (listing.get("title") or "").lower()
+    if not any(s in title_lower for s in _NEEDS_AI_SIGNALS):
+        logger.debug(f"[AI] Sem sinal auth — skip AI: {listing.get('title','')[:50]}")
+        return _mock_extract(listing)
+
+    # Limita descrição a 400 chars para economizar tokens de input
     prompt = EXTRACT_PROMPT.format(
         title=listing.get("title", ""),
-        description=(listing.get("description") or "")[:2000],
+        description=(listing.get("description") or "")[:400],
         price=listing.get("price", 0),
     )
 

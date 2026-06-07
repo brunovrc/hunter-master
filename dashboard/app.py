@@ -401,22 +401,37 @@ async def control(request: Request):
             "paused_until": paused.strftime("%H:%M") if paused and paused > datetime.now() else None,
         })
 
-    next_run = None
+    next_run = "–"
     if _scheduler:
         job = _scheduler.get_job("hunter_cycle")
         if job and job.next_run_time:
-            next_run = job.next_run_time.strftime("%H:%M:%S")
+            from datetime import timezone
+            now_utc = datetime.now(timezone.utc)
+            delta = job.next_run_time - now_utc
+            total_secs = max(0, int(delta.total_seconds()))
+            mins, secs = divmod(total_secs, 60)
+            if mins > 0:
+                next_run = f"em {mins}min {secs:02d}s"
+            else:
+                next_run = f"em {secs}s"
 
     async with AsyncSessionLocal() as session:
         run_rows = (await session.execute(
             select(RunLog).order_by(desc(RunLog.started_at)).limit(15)
         )).scalars().all()
 
+    # last_cycle vem do DB (último run com status ok)
+    last_cycle_str = "–"
+    for r in run_rows:
+        if r.status == "ok" and r.finished_at:
+            last_cycle_str = r.finished_at.strftime("%d/%m %H:%M")
+            break
+
     return templates.TemplateResponse(request, "control.html", {
         "scheduler_running": _scheduler.running if _scheduler else False,
         "cycle_running": _cycle_running,
         "next_run": next_run,
-        "last_cycle": _last_cycle.strftime("%d/%m %H:%M") if _last_cycle else "–",
+        "last_cycle": last_cycle_str,
         "run_rows": run_rows,
         "scraper_status": scraper_status,
         "scan_interval": settings.scan_interval_minutes,
