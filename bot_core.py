@@ -23,6 +23,7 @@ from notifications.telegram_bot import send_daily_report, send_health_alert, sen
 from notifications.whatsapp import send_whatsapp, send_whatsapp_daily_report
 from scrapers.ebay import EbayScraper
 from scrapers.enjoei import EnjoeiScraper
+from scrapers.vinted import VintedScraper
 from scrapers.mercadolivre import MercadoLivreScraper
 from scrapers.mercadolivre_argentina import MercadoLivreArgentinaScraper
 from scrapers.olx import OLXScraper
@@ -38,6 +39,7 @@ scrapers = [
     OLXScraper(),
     ShopeeScraper(),
     EbayScraper(),
+    VintedScraper(),
 ]
 
 stats = {
