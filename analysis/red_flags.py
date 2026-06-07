@@ -193,6 +193,9 @@ NON_SPORTS_EXCLUSIONS = [
     "kit 4 ", "kit 3 ", "kit 2 camisas",
     # Futebol americano (não é o foco)
     "nfl", "touchdown", "quarterback", "super bowl",
+    # Rugby — não é o foco
+    "rugby", "saracens", "all blacks", "haka", "six nations", "rugby union",
+    "rugby league", "premiership rugby", "top 14",
     # F1/motor — apenas capacete/macacão (camisa de F1 pode ser aceita em edge cases)
     "capacete", "helmet", "macacão piloto",
     # Itens comemorativos não-esportivos
