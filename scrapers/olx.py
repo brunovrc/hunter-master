@@ -3,7 +3,7 @@ import logging
 
 from playwright.async_api import async_playwright
 
-from .base import BaseScraper
+from .base import BaseScraper, is_recent, _UNKNOWN_TS
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,7 @@ class OLXScraper(BaseScraper):
                 "images": [img] if img else [],
                 "seller_ratings": 0,
                 "seller_positive_pct": 100,
+                "listed_at": _UNKNOWN_TS,
             })
         except Exception:
             return None

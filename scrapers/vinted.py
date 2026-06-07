@@ -134,7 +134,9 @@ class VintedScraper(BaseScraper):
             if price_brl < floor:
                 return None
 
-            if not is_recent(item.get("created_at_ts")):
+            # Vinted retorna created_at_ts (unix) ou created_at (ISO string)
+            ts = item.get("created_at_ts") or item.get("created_at")
+            if ts is None or not is_recent(ts):
                 return None
 
             item_id = str(item.get("id", ""))

@@ -8,11 +8,18 @@ from typing import Optional
 # Anúncios mais velhos que isso são ignorados — radar só quer novidades
 _MAX_AGE_MINUTES = 150  # 2h30 (margem para ciclos atrasados)
 
+_UNKNOWN_TS = object()  # sentinel: scraper não tem timestamp
+
 
 def is_recent(listed_at) -> bool:
-    """True se o anúncio foi criado nos últimos _MAX_AGE_MINUTES minutos."""
-    if listed_at is None:
-        return True  # sem timestamp → dedup cuida
+    """True se o anúncio foi criado nos últimos _MAX_AGE_MINUTES minutos.
+    Passar is_recent(_UNKNOWN_TS) retorna True (scrapers sem timestamp usam só dedup).
+    Passar is_recent(None) retorna False (timestamp esperado mas ausente → rejeita).
+    """
+    if listed_at is _UNKNOWN_TS:
+        return True  # scraper sem timestamp — dedup é o filtro
+    if listed_at is None or listed_at == "" or listed_at == 0:
+        return False  # timestamp esperado mas ausente/zero → rejeita item antigo
     try:
         if isinstance(listed_at, (int, float)):
             dt = datetime.fromtimestamp(listed_at, tz=timezone.utc)
@@ -24,7 +31,7 @@ def is_recent(listed_at) -> bool:
             dt = dt.replace(tzinfo=timezone.utc)
         return (datetime.now(timezone.utc) - dt).total_seconds() <= _MAX_AGE_MINUTES * 60
     except Exception:
-        return True  # parse falhou → deixa passar
+        return False  # parse falhou → rejeita por precaução
 
 from sqlalchemy import select
 

@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright
 
 from config.search_terms import ENJOEI_BR, NEGATIVE_TITLE_TERMS, get_price_floor
 from .anti_detection import get_browser_context, human_delay, safe_text, safe_attr
-from .base import BaseScraper
+from .base import BaseScraper, is_recent, _UNKNOWN_TS
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,7 @@ class EnjoeiScraper(BaseScraper):
                 "images": [img] if img else [],
                 "seller_ratings": 0,
                 "seller_positive_pct": 100,
+                "listed_at": _UNKNOWN_TS,
             })
         except Exception:
             return None
