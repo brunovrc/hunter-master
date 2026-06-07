@@ -106,6 +106,45 @@ templates = Jinja2Templates(directory="dashboard/templates")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+from datetime import timedelta
+from sqlalchemy import or_
+
+# ── Categorias de filtro ───────────────────────────────────────────────────────
+_CATEGORY_TERMS = {
+    "selecao_br":  ["brasil", "seleção", "selecao", "cbf", "verde e amarela", "canarinho"],
+    "selecao_arg": ["argentina", "albiceleste", "afa"],
+    "times_br":    ["flamengo", "corinthians", "palmeiras", "são paulo", "sao paulo",
+                    "vasco", "grêmio", "gremio", "internacional", "botafogo", "cruzeiro",
+                    "atletico mineiro", "atlético mineiro", "santos fc", "fluminense",
+                    "bahia", "fortaleza", "sport recife"],
+    "times_eur":   ["real madrid", "barcelona", "milan", "juventus", "psg", "paris saint",
+                    "liverpool", "manchester", "chelsea", "arsenal", "ajax", "inter milan",
+                    "napoli", "roma", "marseille", "porto", "benfica", "celtic", "rangers"],
+    "nba":         ["nba", "bulls", "lakers", "celtics", "warriors", "heat", "nets",
+                    "basketball", "basquete", "basquet"],
+}
+
+_PERIOD_DAYS = {"hoje": 1, "3d": 3, "7d": 7, "30d": 30}
+
+
+def _age_label(dt) -> str:
+    if not dt:
+        return ""
+    diff = datetime.utcnow() - dt
+    total_secs = int(diff.total_seconds())
+    if total_secs < 60:
+        return "agora"
+    if total_secs < 3600:
+        return f"há {total_secs // 60}min"
+    if diff.days == 0:
+        return f"há {total_secs // 3600}h"
+    if diff.days == 1:
+        return "ontem"
+    if diff.days < 7:
+        return f"há {diff.days} dias"
+    return dt.strftime("%d/%m")
+
+
 def _parse_images(raw: Optional[str]) -> list[str]:
     if not raw:
         return []
@@ -151,6 +190,8 @@ def _listing_to_dict(l: Listing) -> dict:
         "notified": l.notified,
         "reasoning": l.reasoning or "",
         "filters_data": _parse_filters(l.filters_json),
+        "age_label": _age_label(l.created_at),
+        "created_at_fmt": l.created_at.strftime("%d/%m %H:%M") if l.created_at else "",
     }
 
 
@@ -211,6 +252,8 @@ async def logout(request: Request):
 async def feed(
     request: Request,
     filter: str = "all",
+    category: str = "all",
+    period: str = "all",
     page: int = 1,
     per_page: int = 20,
 ):
@@ -221,6 +264,8 @@ async def feed(
             Listing.recommendation != "RECUSAR",
             Listing.discarded == False,
         )
+
+        # Filtro por recomendação
         if filter == "buy":
             q = q.where(Listing.recommendation == "COMPRAR AGORA")
         elif filter == "negotiate":
@@ -228,10 +273,20 @@ async def feed(
         elif filter == "flag":
             q = q.where(Listing.recommendation == "FLAG AUTENTICADOR")
 
+        # Filtro por categoria
+        if category in _CATEGORY_TERMS:
+            terms = _CATEGORY_TERMS[category]
+            q = q.where(or_(*[Listing.title.ilike(f"%{t}%") for t in terms]))
+
+        # Filtro por período
+        if period in _PERIOD_DAYS:
+            cutoff = datetime.utcnow() - timedelta(days=_PERIOD_DAYS[period])
+            q = q.where(Listing.created_at >= cutoff)
+
         count_q = select(func.count()).select_from(q.subquery())
         total = (await session.execute(count_q)).scalar() or 0
 
-        q = q.order_by(desc(Listing.score)).offset((page - 1) * per_page).limit(per_page)
+        q = q.order_by(desc(Listing.created_at)).offset((page - 1) * per_page).limit(per_page)
         rows = (await session.execute(q)).scalars().all()
 
     listings = [_listing_to_dict(r) for r in rows]
@@ -243,6 +298,8 @@ async def feed(
     return templates.TemplateResponse(request, "feed.html", {
         "listings": listings,
         "filter": filter,
+        "category": category,
+        "period": period,
         "page": page,
         "total_pages": total_pages,
         "total": total,
