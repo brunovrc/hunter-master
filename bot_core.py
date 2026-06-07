@@ -68,18 +68,7 @@ def _find_player_data(title: str, extracted: dict) -> dict:
 async def _process_listing(listing: dict):
     global stats
     stats["scraped"] += 1
-
-    # Dedup ANTES de qualquer chamada de AI — itens já vistos são descartados sem custo
-    external_id = listing.get("external_id", "")
-    if external_id:
-        async with AsyncSessionLocal() as session:
-            from sqlalchemy import select as sa_select
-            existing = (await session.execute(
-                sa_select(Listing.id).where(Listing.external_id == external_id).limit(1)
-            )).first()
-            if existing:
-                return
-
+    # Dedup já foi feito em BaseScraper._deduplicate() — não refazer aqui
     flags = check_red_flags(listing)
     if has_critical_flag(flags):
         return
@@ -256,7 +245,7 @@ def _has_collector_signal(listing: dict) -> bool:
     """Pré-filtro barato (CPU-only). False = não vale chamar a AI."""
     title = (listing.get("title") or "").lower()
     price = listing.get("price", 0) or 0
-    if price < 80:
+    if price < 300:  # autógrafo real não existe abaixo de R$300
         return False
     return any(s in title for s in _COLLECTOR_SIGNALS)
 

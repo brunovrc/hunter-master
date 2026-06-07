@@ -11,51 +11,21 @@ logger = logging.getLogger(__name__)
 def _mock_mode() -> bool:
     return not settings.gemini_api_key and not settings.anthropic_api_key
 
-EXTRACT_PROMPT = """Você é um especialista em camisetas esportivas de colecionador.
-Analise este anúncio e responda APENAS com JSON, sem texto adicional.
+EXTRACT_PROMPT = """Especialista em camisetas esportivas de colecionador. JSON apenas, sem texto.
 
-Determine se é um item genuíno de colecionador (autógrafo real de mão, match worn, certificado real)
-ou uma camisa personalizada/de loja (nome impresso, produto de prateleira).
+{{"player_name":"","club":"","year_era":"","is_autographed":false,"is_match_worn":false,"has_coa":false,"coa_type":null,"is_personalized_jersey":false,"condition":"boa","authenticity_score":50,"fake_suspicion":false,"fake_reason":""}}
 
-{{
-  "player_name": "nome do jogador se mencionado, string vazia se não",
-  "club": "clube",
-  "year_era": "ano ou era (ex: 1994, anos 80)",
-  "is_autographed": true se tem autógrafo REAL de mão (não impresso),
-  "is_match_worn": true se foi usada em jogo real,
-  "has_coa": true se tem certificado de autenticidade real (PSA, Beckett, JSA, SB Brasil, Fabricks),
-  "coa_type": "PSA, Beckett, JSA, SB Brasil, Fabricks ou null",
-  "is_personalized_jersey": true se é camisa nova personalizada/de loja (nome impresso, não autógrafo real),
-  "condition": "nova, boa, regular ou ruim",
-  "authenticity_score": número de 0 a 100,
-  "fake_suspicion": true ou false,
-  "fake_reason": "motivo se houver suspeita, string vazia se não"
-}}
-
-Anúncio:
 Título: {title}
 Descrição: {description}
-Preço: R$ {price}"""
+Preço: R${price}
 
-VISION_PROMPT = """Você é um especialista em autenticidade de camisetas esportivas autografadas.
-Analise estas fotos e responda APENAS com JSON.
+Retorne JSON com os campos acima preenchidos. is_personalized_jersey=true se for camisa nova de loja/nome impresso."""
 
-Verifique:
-1. O autógrafo parece de mão (traço orgânico, pressão variável) ou impresso/autopen?
-2. Há certificado de autenticidade visível?
-3. A camisa parece original ou réplica?
-4. Há etiquetas, holograma ou outros indicadores de autenticidade?
+VISION_PROMPT = """Analise autenticidade desta camisa esportiva autografada. JSON apenas.
 
-{{
-  "signature_looks_genuine": true ou false,
-  "signature_confidence": número de 0 a 100,
-  "autopen_suspected": true se o traço parece mecânico/uniforme demais,
-  "labels_consistent": true se etiquetas batem com a era declarada,
-  "likely_fake": true ou false,
-  "visual_red_flags": ["lista de problemas encontrados"],
-  "authenticity_score": número de 0 a 100,
-  "notes": "observações relevantes"
-}}"""
+{{"signature_looks_genuine":true,"signature_confidence":60,"autopen_suspected":false,"labels_consistent":true,"likely_fake":false,"visual_red_flags":[],"authenticity_score":60,"notes":""}}
+
+Verifique: autógrafo é de mão (traço orgânico) ou impresso/autopen? COA visível? Camisa original ou réplica? Retorne JSON preenchido."""
 
 
 def _mock_extract(listing: dict) -> dict:
@@ -262,13 +232,20 @@ async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
     if not images_b64:
         return {"authenticity_score": 30, "likely_fake": False, "visual_red_flags": ["IMAGES_UNAVAILABLE"]}
 
-    # Sempre Haiku para visão — Sonnet vision é 12x mais caro sem ganho relevante
+    # Gemini Flash Lite para visão — ~10x mais barato que Haiku, qualidade equivalente
     text = None
-    if settings.anthropic_api_key:
+    if settings.gemini_api_key:
+        try:
+            text = await _gemini_vision(images_b64, VISION_PROMPT)
+            logger.debug("[Vision] Gemini OK")
+        except Exception as e:
+            logger.warning(f"[Vision] Gemini falhou: {e}")
+
+    if text is None and settings.anthropic_api_key:
         try:
             text = await _call_anthropic_vision(images_b64, VISION_PROMPT, _HAIKU)
         except Exception as e:
-            logger.warning(f"[Vision] Anthropic falhou: {e}")
+            logger.warning(f"[Vision] Anthropic fallback falhou: {e}")
 
     if text is None:
         return {"authenticity_score": 50, "likely_fake": False, "visual_red_flags": []}

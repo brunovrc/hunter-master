@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 # Anúncios mais velhos que isso são ignorados — radar só quer novidades
-_MAX_AGE_MINUTES = 150  # 2h30 (margem para ciclos atrasados)
+_MAX_AGE_MINUTES = 60  # 1h — janela de oportunidade real
 
 _UNKNOWN_TS = object()  # sentinel: scraper não tem timestamp
 

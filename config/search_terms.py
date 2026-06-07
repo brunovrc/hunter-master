@@ -52,38 +52,22 @@ BASKETBALL = [
 # ── ENJOEI (subset otimizado) ──────────────────────────────────────────────────
 
 ENJOEI_BR = [
+    # Genérico — captura qualquer autógrafo real
     "camisa futebol autografada",
-    "camisa futebol autografo",
-    "camisa futebol assinada jogador",
     "camisa futebol match worn",
     "camisa futebol autografada certificado",
+    # Lendas absolutas — maior liquidez e ticket
     "pele autografado",
-    "garrincha autografado",
+    "maradona autografado",
     "zico autografado",
     "ronaldo fenomeno autografado",
-    "neymar autografado camisa",
-    "romario autografado",
     "ronaldinho autografado",
-    "maradona autografado",
-    "messi autografado camisa",
-    "gabigol autografado",
-    "hulk autografado camisa",
-    "thiago silva autografado camisa",
-    "cafu autografado",
-    "roberto carlos autografado",
-    "camisa futebol player issue",
+    "neymar autografado camisa",
+    # NBA
     "camisa nba autografada",
     "jordan autografado",
-    "kobe autografado",
-    # ── Vintage / retro
-    "camisa futebol vintage original",
-    "camisa futebol retro original",
+    # Vintage / retro original
     "camisa copa do mundo original",
-    "camisa libertadores original",
-    "camisa brasil 1994 original",
-    "camisa brasil 2002 original",
-    "camisa joia colecionador",
-    "camisa futebol original rara",
 ]
 
 # ── FILTROS NEGATIVOS ──────────────────────────────────────────────────────────
