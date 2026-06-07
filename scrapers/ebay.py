@@ -13,7 +13,11 @@ from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-FINDING_API = "https://svcs.ebay.com/services/search/FindingService/v1"
+FINDING_API_PROD    = "https://svcs.ebay.com/services/search/FindingService/v1"
+FINDING_API_SANDBOX = "https://svcs.sandbox.ebay.com/services/search/FindingService/v1"
+
+# Troca para FINDING_API_PROD quando a chave de Produção for aprovada
+FINDING_API = FINDING_API_SANDBOX
 
 # USD → BRL (jun/2026)
 USD_TO_BRL = 5.75
@@ -56,7 +60,7 @@ class EbayScraper(BaseScraper):
                             ("RESPONSE-DATA-FORMAT", "JSON"),
                             ("storeName", store),
                             ("keywords", keyword),
-                            ("paginationInput.entriesPerPage", "100"),
+                            ("paginationInput.entriesPerPage", "20"),
                             ("sortOrder", "StartTimeNewest"),
                             ("outputSelector(0)", "SellerInfo"),
                             ("outputSelector(1)", "PictureURLLarge"),
