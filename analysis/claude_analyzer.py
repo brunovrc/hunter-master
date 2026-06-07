@@ -110,6 +110,26 @@ def _parse_json(text: str) -> dict:
 
 GEMINI_MODEL = "gemini-2.0-flash-lite"
 
+_SONNET = "claude-sonnet-4-6"
+_HAIKU  = "claude-haiku-4-5-20251001"
+
+# Sinais de alto valor — usa Sonnet nesses casos
+_HIGH_VALUE_SIGNALS = [
+    "psa", "beckett", "jsa", "coa", "certificado",
+    "match worn", "usada em jogo", "player issue", "player edition",
+    "pelé", "pele", "maradona", "michael jordan", "kobe bryant",
+    "garrincha", "zico", "ronaldo fenomeno", "ronaldo r9",
+    "socrates", "sócrates", "tostao", "tostão", "jairzinho",
+    "carlos alberto", "kempes", "batistuta", "gullit", "van basten",
+]
+
+
+def _select_model(listing: dict) -> str:
+    title = (listing.get("title") or "").lower()
+    if any(s in title for s in _HIGH_VALUE_SIGNALS):
+        return _SONNET
+    return _HAIKU
+
 
 async def _gemini_text(prompt: str) -> str:
     from google import genai
@@ -131,18 +151,18 @@ async def _gemini_vision(images_b64: list[tuple[str, str]], prompt: str) -> str:
     return response.text
 
 
-async def _call_anthropic_text(prompt: str) -> str:
+async def _call_anthropic_text(prompt: str, model: str = _HAIKU) -> str:
     import anthropic
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     msg = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=model,
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
     return msg.content[0].text
 
 
-async def _call_anthropic_vision(images_b64: list[tuple[str, str]], prompt: str) -> str:
+async def _call_anthropic_vision(images_b64: list[tuple[str, str]], prompt: str, model: str = _HAIKU) -> str:
     import anthropic
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     content = [
@@ -151,7 +171,7 @@ async def _call_anthropic_vision(images_b64: list[tuple[str, str]], prompt: str)
     ]
     content.append({"type": "text", "text": prompt})
     msg = await client.messages.create(
-        model="claude-haiku-4-5-20251001", max_tokens=512,
+        model=model, max_tokens=512,
         messages=[{"role": "user", "content": content}],
     )
     return msg.content[0].text
@@ -178,9 +198,10 @@ async def extract_listing_data(listing: dict) -> dict:
             logger.warning(f"[AI] Gemini falhou ({type(e).__name__}), tentando Anthropic...")
 
     if text is None and settings.anthropic_api_key:
+        model = _select_model(listing)
         try:
-            text = await _call_anthropic_text(prompt)
-            logger.debug("[AI] Anthropic OK")
+            text = await _call_anthropic_text(prompt, model)
+            logger.debug(f"[AI] Anthropic OK ({model.split('-')[1]})")
         except Exception as e:
             logger.warning(f"[AI] Anthropic falhou: {e}")
 
@@ -202,7 +223,7 @@ async def extract_listing_data(listing: dict) -> dict:
         return _mock_extract(listing)
 
 
-async def analyze_images(image_urls: list) -> dict:
+async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
     if _mock_mode() or not image_urls:
         return _mock_vision(image_urls)
 
@@ -231,8 +252,9 @@ async def analyze_images(image_urls: list) -> dict:
             logger.warning(f"[Vision] Gemini falhou ({type(e).__name__}), tentando Anthropic...")
 
     if text is None and settings.anthropic_api_key:
+        model = _select_model(listing or {})
         try:
-            text = await _call_anthropic_vision(images_b64, VISION_PROMPT)
+            text = await _call_anthropic_vision(images_b64, VISION_PROMPT, model)
         except Exception as e:
             logger.warning(f"[Vision] Anthropic falhou: {e}")
 

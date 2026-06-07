@@ -79,7 +79,7 @@ async def _process_listing(listing: dict):
         logger.debug(f"[Pipeline] Personalizada descartada: {listing.get('title', '')[:50]}")
         return
 
-    vision = await analyze_images(listing.get("images", []))
+    vision = await analyze_images(listing.get("images", []), listing)
     claude_analysis = {**extracted, **vision}
 
     if claude_analysis.get("likely_fake") or claude_analysis.get("autopen_suspected"):
