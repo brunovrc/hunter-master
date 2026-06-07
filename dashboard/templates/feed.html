@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Feed · Hunter Master{% endblock %}
+
+{% block content %}
+<div style="padding:28px 32px;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-.03em;">Feed de Oportunidades</h1>
+      <p style="font-size:13px;color:#52525b;margin-top:2px;">
+        {% if total > 0 %}{{ total }} item{% if total != 1 %}s{% endif %} qualificado{% if total != 1 %}s{% endif %}{% else %}Nenhuma oportunidade ainda{% endif %}
+      </p>
+    </div>
+    <a href="/feed" class="btn-ghost" style="text-decoration:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Atualizar
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
+    {% set filters = [
+      ('all',      'Todos',    '#fff',     '#141416', '#2a2a2e'),
+      ('buy',      'Comprar',  '#4ade80',  'rgba(34,197,94,.1)', 'rgba(34,197,94,.25)'),
+      ('negotiate','Negociar', '#fbbf24',  'rgba(234,179,8,.1)', 'rgba(234,179,8,.25)'),
+      ('flag',     'Verificar','#fb923c',  'rgba(249,115,22,.1)','rgba(249,115,22,.25)'),
+    ] %}
+    {% for f_key, f_label, f_color, f_bg, f_border in filters %}
+    <a href="/feed?filter={{ f_key }}"
+       style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:999px;font-size:12.5px;font-weight:600;text-decoration:none;border:1px solid;transition:all .15s;
+              {% if filter == f_key %}
+                color:{{ f_color }};background:{{ f_bg }};border-color:{{ f_border }};
+              {% else %}
+                color:#71717a;background:transparent;border-color:#2a2a2e;
+              {% endif %}">
+      {{ f_label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Grid -->
+  {% if listings %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;" id="feed-grid">
+    {% for item in listings %}
+    <div class="card" id="card-{{ item.id }}" style="overflow:hidden;display:flex;flex-direction:column;transition:all .2s;">
+
+      <!-- Image -->
+      <div class="listing-img-wrap">
+        {% if item.thumbnail %}
+        <img src="{{ item.thumbnail }}" alt="{{ item.title[:40] }}" class="listing-img"
+             onerror="this.parentElement.innerHTML='<div class=\'listing-img-placeholder\'>👕</div>'">
+        {% else %}
+        <div class="listing-img-placeholder">👕</div>
+        {% endif %}
+
+        <!-- Overlays -->
+        <div style="position:absolute;top:10px;left:10px;">
+          <span class="badge badge-{{ 'buy' if item.recommendation=='COMPRAR AGORA' else 'neg' if item.recommendation=='NEGOCIAR' else 'flag' if item.recommendation=='FLAG AUTENTICADOR' else 'refuse' }}">
+            {{ '✓ COMPRAR' if item.recommendation=='COMPRAR AGORA' else '↕ NEGOCIAR' if item.recommendation=='NEGOCIAR' else '🔍 VERIFICAR' if item.recommendation=='FLAG AUTENTICADOR' else 'RECUSADO' }}
+          </span>
+        </div>
+        <div style="position:absolute;top:10px;right:10px;">
+          <div class="score-ring" style="background:{% if item.score >= 70 %}rgba(34,197,94,.9){% elif item.score >= 50 %}rgba(234,179,8,.9){% else %}rgba(249,115,22,.9){% endif %};color:#000;">
+            {{ item.score }}
+          </div>
+        </div>
+        <div style="position:absolute;bottom:10px;left:10px;">
+          <span style="background:rgba(0,0,0,.7);backdrop-filter:blur(4px);color:#d4d4d8;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:6px;letter-spacing:.02em;">
+            {{ item.platform | upper }}
+          </span>
+        </div>
+        {% if item.purchased %}
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);">
+          <span style="color:#4ade80;font-weight:800;font-size:16px;letter-spacing:.04em;">✓ COMPRADO</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Body -->
+      <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px;">
+
+        <!-- Title -->
+        <h3 style="font-size:13.5px;font-weight:600;color:#e4e4e7;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+          {{ item.title }}
+        </h3>
+
+        <!-- Player + signals -->
+        {% if item.player_name %}
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#a1a1aa;font-weight:500;">{{ item.player_name }}</span>
+          {% if item.is_autographed %}<span style="font-size:10px;background:rgba(168,85,247,.15);color:#c084fc;padding:2px 7px;border-radius:5px;font-weight:600;">✍ AUTO</span>{% endif %}
+          {% if item.is_match_worn %}<span style="font-size:10px;background:rgba(59,130,246,.15);color:#60a5fa;padding:2px 7px;border-radius:5px;font-weight:600;">⚽ WORN</span>{% endif %}
+          {% if item.has_coa %}<span style="font-size:10px;background:rgba(234,179,8,.15);color:#fbbf24;padding:2px 7px;border-radius:5px;font-weight:600;">📜 COA</span>{% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Price row -->
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto;">
+          <div>
+            <div style="font-size:23px;font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1;">
+              R$ {{ "%.0f"|format(item.price) }}
+            </div>
+            {% if item.sell_price_estimate %}
+            <div style="font-size:11px;color:#52525b;margin-top:2px;">
+              Venda est. <span style="color:#71717a;">R$ {{ "%.0f"|format(item.sell_price_estimate) }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% if item.gross_margin %}
+          <div style="text-align:right;">
+            <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;color:{% if item.gross_margin >= 0.4 %}#4ade80{% elif item.gross_margin >= 0.2 %}#fbbf24{% else %}#fb923c{% endif %};">
+              +{{ "%.0f"|format(item.gross_margin * 100) }}%
+            </div>
+            <div style="font-size:10px;color:#52525b;">margem</div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid #2a2a2e;">
+          <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn-ghost" style="flex:1;justify-content:center;font-size:12px;text-decoration:none;">
+            Ver anúncio ↗
+          </a>
+          {% if not item.purchased %}
+          <button onclick="openBuyModal({{ item.id }}, {{ item.price }})" class="btn-yellow" style="flex:1;justify-content:center;font-size:12px;">
+            ✓ Comprei
+          </button>
+          <button onclick="discardItem({{ item.id }}, this)"
+                  style="width:34px;height:34px;background:transparent;border:1px solid #2a2a2e;border-radius:8px;color:#52525b;cursor:pointer;font-size:14px;transition:all .15s;flex-shrink:0;"
+                  onmouseover="this.style.borderColor='#ef4444';this.style.color='#ef4444';"
+                  onmouseout="this.style.borderColor='#2a2a2e';this.style.color='#52525b';">
+            ✕
+          </button>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:32px;">
+    {% if page > 1 %}<a href="/feed?filter={{ filter }}&page={{ page-1 }}" class="btn-ghost">← Anterior</a>{% endif %}
+    <span style="font-size:13px;color:#52525b;">{{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}<a href="/feed?filter={{ filter }}&page={{ page+1 }}" class="btn-ghost">Próximo →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <!-- Empty state -->
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 0;text-align:center;">
+    <div style="width:72px;height:72px;background:#1c1c1f;border:1px solid #2a2a2e;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:20px;">🔍</div>
+    <div style="font-size:18px;font-weight:700;color:#e4e4e7;margin-bottom:8px;">Nenhuma oportunidade ainda</div>
+    <div style="font-size:13px;color:#52525b;margin-bottom:24px;">O bot ainda não encontrou itens qualificados.<br>Rode um ciclo manual na página de Controle.</div>
+    <a href="/control" class="btn-yellow" style="text-decoration:none;">Ir para Controle →</a>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Buy Modal -->
+<div id="buy-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:9998;align-items:center;justify-content:center;">
+  <div style="background:#1c1c1f;border:1px solid #2a2a2e;border-radius:20px;padding:28px;width:100%;max-width:380px;margin:0 20px;box-shadow:0 24px 80px rgba(0,0,0,.6);">
+    <h3 style="font-size:17px;font-weight:800;color:#fff;margin-bottom:20px;letter-spacing:-.02em;">Registrar compra</h3>
+    <input type="hidden" id="buy-id">
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Preço pago (R$)</label>
+      <input type="number" id="buy-price" step="0.01"
+             style="width:100%;background:#141416;border:1px solid #2a2a2e;border-radius:10px;padding:10px 14px;color:#fff;font-size:14px;outline:none;font-family:Inter,sans-serif;"
+             onfocus="this.style.borderColor='#fde047'" onblur="this.style.borderColor='#2a2a2e'">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Anotações</label>
+      <textarea id="buy-notes" rows="2" placeholder="ex: aguardando envio, 10% desconto..."
+                style="width:100%;background:#141416;border:1px solid #2a2a2e;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;resize:none;outline:none;font-family:Inter,sans-serif;"
+                onfocus="this.style.borderColor='#fde047'" onblur="this.style.borderColor='#2a2a2e'"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeBuyModal()" class="btn-ghost" style="flex:1;justify-content:center;">Cancelar</button>
+      <button onclick="confirmBuy()" class="btn-yellow" style="flex:1;justify-content:center;">✓ Confirmar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openBuyModal(id, price) {
+    document.getElementById('buy-id').value = id;
+    document.getElementById('buy-price').value = price;
+    document.getElementById('buy-notes').value = '';
+    const m = document.getElementById('buy-modal');
+    m.style.display = 'flex';
+  }
+  function closeBuyModal() {
+    document.getElementById('buy-modal').style.display = 'none';
+  }
+  async function confirmBuy() {
+    const id = document.getElementById('buy-id').value;
+    const notes = document.getElementById('buy-notes').value;
+    const r = await postForm('/api/purchased', { listing_id: id, notes });
+    if (r.ok !== false) {
+      closeBuyModal();
+      const card = document.getElementById('card-' + id);
+      if (card) { card.style.opacity = '.35'; card.style.pointerEvents = 'none'; }
+      showToast('Compra registrada! Ver em Comprados.', false);
+    }
+  }
+  async function discardItem(id, btn) {
+    if (!confirm('Descartar este item do feed?')) return;
+    const r = await postForm('/api/discard', { listing_id: id }, btn);
+    if (r.ok !== false) {
+      const card = document.getElementById('card-' + id);
+      if (card) {
+        card.style.transition = 'all .3s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(.95)';
+        setTimeout(() => card.remove(), 300);
+      }
+    }
+  }
+  document.getElementById('buy-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeBuyModal();
+  });
+</script>
+{% endblock %}

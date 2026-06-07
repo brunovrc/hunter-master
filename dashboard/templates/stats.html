@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Estatísticas · Hunter Master{% endblock %}
+
+{% block content %}
+<div style="padding:28px 32px;">
+
+  <div style="margin-bottom:24px;">
+    <h1 style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-.03em;">Estatísticas</h1>
+    <p style="font-size:13px;color:#52525b;margin-top:2px;">Visão geral de toda a operação</p>
+  </div>
+
+  <!-- Bento grid -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
+
+    <!-- Big yellow card -->
+    <div style="background:#fde047;border-radius:20px;padding:24px;display:flex;flex-direction:column;justify-content:space-between;min-height:160px;">
+      <div style="font-size:12px;font-weight:700;color:#0f0f11;text-transform:uppercase;letter-spacing:.06em;opacity:.6;">Total analisados</div>
+      <div>
+        <div style="font-size:52px;font-weight:900;color:#0f0f11;line-height:1;letter-spacing:-.05em;">{{ total_listings }}</div>
+        <div style="font-size:12px;color:#0f0f11;opacity:.55;margin-top:4px;">itens qualificados para análise</div>
+      </div>
+    </div>
+
+    <!-- Oportunidades -->
+    <div class="card" style="padding:24px;display:flex;flex-direction:column;justify-content:space-between;min-height:160px;">
+      <div style="font-size:12px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:.06em;">Oportunidades</div>
+      <div>
+        <div class="stat-number" style="color:#fff;">{{ total_opps }}</div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <span class="badge badge-buy">{{ total_buy }} comprar</span>
+          <span class="badge badge-neg">{{ total_negotiate }} negociar</span>
+          <span class="badge badge-flag">{{ total_flag }} verificar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comprados -->
+    <div class="card" style="padding:24px;display:flex;flex-direction:column;justify-content:space-between;min-height:160px;">
+      <div style="font-size:12px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:.06em;">Comprados</div>
+      <div>
+        <div class="stat-number" style="color:#c084fc;">{{ total_purchased }}</div>
+        <div style="font-size:12px;color:#52525b;margin-top:8px;">itens adquiridos no período</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Second row -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;">
+
+    <!-- Chart card -->
+    <div class="card" style="padding:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div style="font-size:14px;font-weight:700;color:#fff;">Oportunidades — últimos 7 dias</div>
+      </div>
+      <canvas id="oppChart" height="140"></canvas>
+    </div>
+
+    <!-- By platform -->
+    <div class="card" style="padding:24px;">
+      <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px;">Por plataforma</div>
+      {% if platform_rows %}
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        {% set max_count = platform_rows[0][1] if platform_rows else 1 %}
+        {% for platform, count in platform_rows %}
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;">
+            <span style="color:#d4d4d8;font-weight:500;">{{ platform or '—' }}</span>
+            <span style="color:#71717a;font-weight:600;">{{ count }}</span>
+          </div>
+          <div style="height:4px;background:#27272a;border-radius:4px;overflow:hidden;">
+            <div style="height:100%;border-radius:4px;background:{% if loop.index == 1 %}#fde047{% elif loop.index == 2 %}#a78bfa{% else %}#60a5fa{% endif %};width:{{ [((count / max_count) * 100)|int, 4]|max }}%;transition:width .5s;"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="color:#3f3f46;font-size:13px;">Sem dados ainda</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Third row -->
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;">
+
+    <!-- Top jogadores -->
+    <div class="card" style="padding:24px;">
+      <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px;">Top jogadores</div>
+      {% if player_rows %}
+      <div style="display:flex;flex-direction:column;gap:1px;">
+        {% for player, count in player_rows %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1f1f22;">
+          <span style="font-size:13px;color:#d4d4d8;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">{{ player }}</span>
+          <span style="font-size:11px;font-weight:700;background:#27272a;color:#71717a;padding:2px 8px;border-radius:6px;margin-left:8px;flex-shrink:0;">{{ count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="color:#3f3f46;font-size:13px;">Sem dados ainda</div>
+      {% endif %}
+    </div>
+
+    <!-- Run log -->
+    <div class="card" style="padding:24px;">
+      <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px;">Ciclos recentes</div>
+      {% if run_rows %}
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr style="color:#3f3f46;font-size:11px;text-transform:uppercase;letter-spacing:.06em;">
+            <th style="text-align:left;padding:0 0 10px;font-weight:600;">Início</th>
+            <th style="text-align:right;padding:0 0 10px;font-weight:600;">Itens</th>
+            <th style="text-align:right;padding:0 0 10px;font-weight:600;">Opps</th>
+            <th style="text-align:right;padding:0 0 10px;font-weight:600;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in run_rows %}
+          <tr style="border-top:1px solid #1f1f22;">
+            <td style="padding:8px 0;color:#a1a1aa;">{{ run.started_at.strftime('%d/%m %H:%M') if run.started_at else '—' }}</td>
+            <td style="padding:8px 0;text-align:right;color:#d4d4d8;font-weight:600;">{{ run.listings_scraped or 0 }}</td>
+            <td style="padding:8px 0;text-align:right;color:#d4d4d8;font-weight:600;">{{ run.opportunities_found or 0 }}</td>
+            <td style="padding:8px 0;text-align:right;">
+              <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+                           {% if run.status == 'ok' %}background:rgba(34,197,94,.12);color:#4ade80;
+                           {% elif run.status == 'running' %}background:rgba(96,165,250,.12);color:#60a5fa;
+                           {% else %}background:rgba(239,68,68,.12);color:#f87171;{% endif %}">
+                {{ run.status }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="color:#3f3f46;font-size:13px;">Nenhum ciclo ainda</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ctx = document.getElementById('oppChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels|safe }},
+    datasets: [{
+      data: {{ chart_data|safe }},
+      backgroundColor: ctx => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 140);
+        g.addColorStop(0, 'rgba(253,224,71,.8)');
+        g.addColorStop(1, 'rgba(253,224,71,.1)');
+        return g;
+      },
+      borderColor: '#fde047',
+      borderWidth: 0,
+      borderRadius: 8,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#1c1c1f', borderColor: '#2a2a2e', borderWidth: 1,
+      titleColor: '#fff', bodyColor: '#71717a',
+      padding: 10, cornerRadius: 8,
+    }},
+    scales: {
+      x: { grid: { display: false }, border: { display: false },
+           ticks: { color: '#52525b', font: { size: 11, family: 'Inter' } } },
+      y: { grid: { color: 'rgba(255,255,255,.04)' }, border: { display: false },
+           ticks: { color: '#52525b', font: { size: 11, family: 'Inter' }, precision: 0 },
+           beginAtZero: true }
+    }
+  }
+});
+</script>
+{% endblock %}

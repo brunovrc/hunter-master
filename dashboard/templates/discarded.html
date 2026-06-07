@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Descartados · Hunter Master{% endblock %}
+
+{% block content %}
+<div style="padding:28px 32px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-.03em;">Descartados</h1>
+      <p style="font-size:13px;color:#52525b;margin-top:2px;">
+        {{ total }} item{% if total != 1 %}s{% endif %} descartado{% if total != 1 %}s{% endif %} — restaure qualquer um de volta ao feed
+      </p>
+    </div>
+    <a href="/feed" class="btn-ghost" style="text-decoration:none;">← Voltar ao feed</a>
+  </div>
+
+  {% if listings %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;" id="disc-grid">
+    {% for item in listings %}
+    <div class="card" id="disc-{{ item.id }}" style="overflow:hidden;display:flex;flex-direction:column;opacity:.7;transition:all .2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">
+
+      <!-- Image -->
+      <div class="listing-img-wrap">
+        {% if item.thumbnail %}
+        <img src="{{ item.thumbnail }}" alt="{{ item.title[:40] }}" class="listing-img"
+             onerror="this.parentElement.innerHTML='<div class=\'listing-img-placeholder\'>👕</div>'">
+        {% else %}
+        <div class="listing-img-placeholder">👕</div>
+        {% endif %}
+
+        <!-- Overlays -->
+        <div style="position:absolute;top:10px;left:10px;">
+          <span class="badge badge-{{ 'buy' if item.recommendation=='BUY_NOW' else 'neg' if item.recommendation=='NEGOTIATE' else 'flag' if item.recommendation=='FLAG_AUTHENTICATOR' else 'refuse' }}">
+            {{ '✓ COMPRAR' if item.recommendation=='BUY_NOW' else '↕ NEGOCIAR' if item.recommendation=='NEGOTIATE' else '🔍 VERIFICAR' if item.recommendation=='FLAG_AUTHENTICATOR' else 'RECUSADO' }}
+          </span>
+        </div>
+        <div style="position:absolute;top:10px;right:10px;">
+          <div class="score-ring" style="background:rgba(113,113,122,.8);color:#e4e4e7;">{{ item.score }}</div>
+        </div>
+        <!-- Descartado overlay -->
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:12px;font-weight:700;color:#71717a;background:rgba(0,0,0,.6);padding:4px 10px;border-radius:6px;letter-spacing:.04em;">DESCARTADO</span>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:10px;">
+        <h3 style="font-size:13.5px;font-weight:600;color:#a1a1aa;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+          {{ item.title }}
+        </h3>
+
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;">
+          <div style="font-size:21px;font-weight:800;color:#71717a;letter-spacing:-.03em;line-height:1;">
+            R$ {{ "%.0f"|format(item.price) }}
+          </div>
+          {% if item.gross_margin %}
+          <div style="font-size:16px;font-weight:700;color:#52525b;">
+            +{{ "%.0f"|format(item.gross_margin * 100) }}%
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid #2a2a2e;">
+          <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn-ghost" style="flex:1;justify-content:center;font-size:12px;text-decoration:none;">
+            Ver anúncio ↗
+          </a>
+          <button onclick="restoreItem({{ item.id }}, this)" class="btn-yellow" style="flex:1;justify-content:center;font-size:12px;">
+            ↩ Restaurar
+          </button>
+        </div>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:32px;">
+    {% if page > 1 %}<a href="/discarded?page={{ page-1 }}" class="btn-ghost">← Anterior</a>{% endif %}
+    <span style="font-size:13px;color:#52525b;">{{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}<a href="/discarded?page={{ page+1 }}" class="btn-ghost">Próximo →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 0;text-align:center;">
+    <div style="width:72px;height:72px;background:#1c1c1f;border:1px solid #2a2a2e;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:20px;">🗑</div>
+    <div style="font-size:18px;font-weight:700;color:#e4e4e7;margin-bottom:8px;">Nenhum item descartado</div>
+    <div style="font-size:13px;color:#52525b;">Itens que você descartar no feed aparecem aqui.</div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function restoreItem(id, btn) {
+    const r = await postForm('/api/restore', { listing_id: id }, btn);
+    if (r.ok !== false) {
+      const card = document.getElementById('disc-' + id);
+      if (card) {
+        card.style.transition = 'all .3s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(.95)';
+        setTimeout(() => card.remove(), 300);
+      }
+      showToast('Item restaurado no feed!', false);
+    }
+  }
+</script>
+{% endblock %}

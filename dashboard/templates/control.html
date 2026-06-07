@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Controle · Hunter Master{% endblock %}
+
+{% block content %}
+<div style="padding:28px 32px;">
+
+  <div style="margin-bottom:24px;">
+    <h1 style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-.03em;">Controle do Bot</h1>
+    <p style="font-size:13px;color:#52525b;margin-top:2px;">Status em tempo real e ações manuais</p>
+  </div>
+
+  <!-- Status row -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
+
+    <!-- Status card — yellow if active -->
+    <div style="{% if scheduler_running %}background:#fde047;{% else %}background:#1c1c1f;border:1px solid #2a2a2e;{% endif %}border-radius:20px;padding:24px;min-height:140px;display:flex;flex-direction:column;justify-content:space-between;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;{% if scheduler_running %}color:rgba(15,15,17,.5);{% else %}color:#52525b;{% endif %}">Status</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          {% if scheduler_running %}
+          <div style="width:10px;height:10px;border-radius:50%;background:#0f0f11;box-shadow:0 0 0 3px rgba(15,15,17,.2);"></div>
+          <span style="font-size:22px;font-weight:800;color:#0f0f11;letter-spacing:-.02em;">Ativo</span>
+          {% else %}
+          <div style="width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,.5);"></div>
+          <span style="font-size:22px;font-weight:800;color:#fff;">Parado</span>
+          {% endif %}
+        </div>
+        {% if cycle_running %}
+        <span style="font-size:11px;font-weight:600;background:rgba(96,165,250,.15);color:#60a5fa;padding:3px 8px;border-radius:6px;">⟳ Ciclo rodando...</span>
+        {% elif scheduler_running %}
+        <span style="font-size:11px;{% if scheduler_running %}color:rgba(15,15,17,.5);{% else %}color:#52525b;{% endif %}">Ciclo a cada {{ scan_interval }} min</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Last cycle -->
+    <div class="card" style="padding:24px;min-height:140px;display:flex;flex-direction:column;justify-content:space-between;">
+      <div style="font-size:11px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:.06em;">Último ciclo</div>
+      <div>
+        <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-.02em;">{{ last_cycle }}</div>
+        <div style="font-size:12px;color:#52525b;margin-top:4px;">varredura completa</div>
+      </div>
+    </div>
+
+    <!-- Next cycle -->
+    <div class="card" style="padding:24px;min-height:140px;display:flex;flex-direction:column;justify-content:space-between;">
+      <div style="font-size:11px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:.06em;">Próximo ciclo</div>
+      <div>
+        <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-.02em;">{{ next_run or '–' }}</div>
+        <div style="font-size:12px;color:#52525b;margin-top:4px;">horário agendado</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Actions + Scrapers row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+
+    <!-- Actions -->
+    <div class="card" style="padding:24px;">
+      <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;">Ações manuais</div>
+      <div style="font-size:12.5px;color:#52525b;margin-bottom:20px;">Force uma varredura imediata sem esperar o próximo ciclo agendado.</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button id="trigger-btn" onclick="triggerCycle(this)" class="btn-yellow">
+          ▶ Rodar ciclo agora
+        </button>
+        <a href="/feed" class="btn-ghost" style="text-decoration:none;">Ver feed →</a>
+      </div>
+    </div>
+
+    <!-- Scrapers status -->
+    <div class="card" style="padding:24px;">
+      <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px;">Scrapers</div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        {% for s in scraper_status %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1f1f22;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:{% if s.paused %}#ef4444{% else %}#4ade80{% endif %};{% if not s.paused %}box-shadow:0 0 6px rgba(74,222,128,.5);{% endif %}"></div>
+            <span style="font-size:13px;color:#d4d4d8;font-weight:500;">{{ s.name }}</span>
+          </div>
+          <span style="font-size:11px;font-weight:600;
+                       {% if s.paused %}color:#f87171;{% else %}color:#4ade80;{% endif %}">
+            {% if s.paused %}Parado até {{ s.paused_until }}{% else %}OK{% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Run log -->
+  <div class="card" style="padding:24px;">
+    <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:20px;">Histórico de ciclos</div>
+    {% if run_rows %}
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead>
+        <tr style="color:#3f3f46;font-size:11px;text-transform:uppercase;letter-spacing:.06em;">
+          <th style="text-align:left;padding:0 0 12px;font-weight:600;">Início</th>
+          <th style="text-align:left;padding:0 0 12px;font-weight:600;">Fim</th>
+          <th style="text-align:right;padding:0 0 12px;font-weight:600;">Itens</th>
+          <th style="text-align:right;padding:0 0 12px;font-weight:600;">Oportunidades</th>
+          <th style="text-align:right;padding:0 0 12px;font-weight:600;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in run_rows %}
+        <tr style="border-top:1px solid #1f1f22;">
+          <td style="padding:10px 0;color:#a1a1aa;">{{ run.started_at.strftime('%d/%m %H:%M') if run.started_at else '—' }}</td>
+          <td style="padding:10px 0;color:#71717a;">{{ run.finished_at.strftime('%H:%M') if run.finished_at else '—' }}</td>
+          <td style="padding:10px 0;text-align:right;color:#d4d4d8;font-weight:600;">{{ run.listings_scraped or 0 }}</td>
+          <td style="padding:10px 0;text-align:right;color:#d4d4d8;font-weight:600;">{{ run.opportunities_found or 0 }}</td>
+          <td style="padding:10px 0;text-align:right;">
+            <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;
+                         {% if run.status == 'ok' %}background:rgba(34,197,94,.12);color:#4ade80;
+                         {% elif run.status == 'running' %}background:rgba(96,165,250,.12);color:#60a5fa;
+                         {% else %}background:rgba(239,68,68,.12);color:#f87171;{% endif %}">
+              {{ run.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:32px 0;">
+      <div style="font-size:13px;color:#3f3f46;">Nenhum ciclo registrado ainda.</div>
+      <div style="font-size:12px;color:#27272a;margin-top:4px;">Use o botão acima para rodar o primeiro ciclo.</div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function triggerCycle(btn) {
+    btn.disabled = true;
+    btn.textContent = '⟳ Iniciando...';
+    btn.style.opacity = '.7';
+    const r = await postForm('/api/trigger', {});
+    if (r.ok !== false) {
+      btn.textContent = '⟳ Rodando...';
+      showToast('Ciclo iniciado! Atualiza em alguns minutos.', false);
+      const poll = setInterval(async () => {
+        try {
+          const res = await fetch('/api/status');
+          const j = await res.json();
+          if (!j.cycle_running) {
+            clearInterval(poll);
+            btn.disabled = false; btn.textContent = '▶ Rodar ciclo agora'; btn.style.opacity = '1';
+            showToast('Ciclo concluído!', false);
+            setTimeout(() => location.reload(), 800);
+          }
+        } catch(e) { clearInterval(poll); btn.disabled = false; btn.textContent = '▶ Rodar ciclo agora'; btn.style.opacity = '1'; }
+      }, 5000);
+    } else {
+      btn.disabled = false; btn.textContent = '▶ Rodar ciclo agora'; btn.style.opacity = '1';
+    }
+  }
+</script>
+{% endblock %}
