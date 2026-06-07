@@ -83,7 +83,7 @@ class VintedScraper(BaseScraper):
                             f"{base_url}/api/v2/catalog/items",
                             params={
                                 "search_text": term,
-                                "per_page": 96,
+                                "per_page": 20,
                                 "order": "newest_first",
                             },
                         )

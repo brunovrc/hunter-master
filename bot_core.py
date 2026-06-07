@@ -37,8 +37,8 @@ scrapers = [
     MercadoLivreArgentinaScraper(),
     OLXScraper(),
     ShopeeScraper(),
-    # EnjoeiScraper(),  # pausado — retorna catálogo inteiro sem filtro temporal
-    # VintedScraper(),  # pausado — 3 países × 14 termos × 96 itens = muito volume
+    VintedScraper(),   # 3 países × 14 termos × 20 itens (newest_first)
+    # EnjoeiScraper(), # pausado — Playwright sem controle de volume, reativar com filtro temporal
     # EbayScraper(),
 ]
 

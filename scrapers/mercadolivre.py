@@ -35,7 +35,7 @@ class MercadoLivreScraper(BaseScraper):
                 try:
                     resp = await client.get(
                         ML_SEARCH_URL,
-                        params={"q": query, "limit": 50},
+                        params={"q": query, "limit": 20, "sort": "date_desc"},
                     )
 
                     if resp.status_code != 200:

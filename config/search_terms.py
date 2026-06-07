@@ -6,263 +6,47 @@ Todos os scrapers importam daqui — nunca hardcodar queries em scraper individu
 # ── FUTEBOL BR ─────────────────────────────────────────────────────────────────
 
 FOOTBALL_BR = [
-    # ── Autografado genérico — máxima prioridade
+    # Genérico autógrafo — captura qualquer camisa autografada
     "camisa futebol autografada",
     "camisa futebol autografo",
     "camisa futebol assinada jogador",
     "camisa futebol match worn",
-    "camisa futebol usada em jogo",
-    "camisa futebol autografada COA",
-    "camisa futebol autografada PSA",
-    "camisa futebol autografada Beckett",
-    "camisa futebol autografada certificado autenticidade",
-
-    # ── Heróis Copa 1958 / 1962
-    "pele autografado camisa",
-    "garrincha autografado camisa",
-    "didi autografado camisa",
-    "zagallo autografado camisa",
-    "vava autografado camisa",
-    "nilton santos autografado camisa",
-    "amarildo autografado camisa",
-
-    # ── Heróis Copa 1970
-    "tostao autografado camisa",
-    "rivelino autografado camisa",
-    "jairzinho autografado camisa",
-    "gerson autografado camisa",
-    "carlos alberto torres autografado camisa",
-    "clodoaldo autografado camisa",
-    "taffarel autografado camisa",
-
-    # ── Heróis Copa 1994
-    "romario autografado camisa",
-    "bebeto autografado camisa",
-    "mazenga autografado camisa",
-    "cafu autografado camisa",
-    "leonardo autografado camisa",
-    "mazinho autografado camisa",
-    "aldair autografado camisa",
-    "marcio santos autografado camisa",
-    "branco autografado camisa",
-    "rai autografado camisa",
-
-    # ── Heróis Copa 2002
-    "ronaldo fenomeno autografado camisa",
-    "ronaldinho autografado camisa",
-    "rivaldo autografado camisa",
-    "roberto carlos autografado camisa",
-    "kleberson autografado camisa",
-    "edmilson autografado camisa",
-    "gilberto silva autografado camisa",
-    "lucio autografado camisa",
-    "marcos autografado camisa",
-    "denilson autografado camisa",
-
-    # ── Lendas gerais BR
-    "socrates autografado camisa",
-    "zico autografado camisa",
-    "dunga autografado camisa",
-    "kaka autografado camisa",
-    "adriano autografado camisa",
-    "ronaldao autografado camisa",
-    "cesar sampaio autografado camisa",
-    "juninho pernambucano autografado camisa",
-    "elano autografado camisa",
-    "alexandre pato autografado camisa",
-    "oscar autografado camisa",
-    "hulk autografado camisa",
-    "fred autografado camisa",
-    "david luiz autografado camisa",
-    "thiago silva autografado camisa",
-    "daniel alves autografado camisa",
-    "casemiro autografado camisa",
-    "philippe coutinho autografado camisa",
-    "gabriel jesus autografado camisa",
-    "firmino autografado camisa",
-    "neymar autografado camisa",
-    "vinicius jr autografado camisa",
-    "rodrygo autografado camisa",
-    "gabriel martinelli autografado camisa",
-    "endrick autografado camisa",
-    "gabigol autografado camisa",
-
-    # ── Campeões Libertadores — times históricos
-    "camisa flamengo libertadores autografada",
-    "camisa santos libertadores autografada",
-    "camisa gremio libertadores autografada",
-    "camisa sao paulo libertadores autografada",
-    "camisa cruzeiro libertadores autografada",
-    "camisa atletico mineiro libertadores autografada",
-    "camisa internacional libertadores autografada",
-    "camisa fluminense libertadores autografada",
-    "camisa estudiantes autografada",
-
-    # ── Lendas argentinas / mundiais (vendidos BR)
-    "maradona autografado camisa",
-    "messi autografado camisa",
-    "beckham autografado camisa",
-    "zidane autografado camisa",
-    "henry autografado camisa",
-    "totti autografado camisa",
-    "maldini autografado camisa",
-    "del piero autografado camisa",
-    "baggio autografado camisa",
-    "cannavaro autografado camisa",
-    "shevchenko autografado camisa",
-    "van basten autografado camisa",
-    "gullit autografado camisa",
-    "figo autografado camisa",
-    "iniesta autografado camisa",
-    "xavi autografado camisa",
-    "gerrard autografado camisa",
-    "rooney autografado camisa",
-    "suarez autografado camisa",
-    "drogba autografado camisa",
-    "ballack autografado camisa",
-    "batistuta autografado camisa",
-    "riquelme autografado camisa",
-    "aguero autografado camisa",
-    "caniggia autografado camisa",
-    "ortega autografado camisa",
-    "kempes autografado camisa",
-    "higuita autografado camisa",
-    "bale autografado camisa",
-    "ronaldo cr7 autografado camisa",
-    "mbappe autografado camisa",
-    "haaland autografado camisa",
-    "benzema autografado camisa",
-    "modric autografado camisa",
-    "cavani autografado camisa",
-    "di maria autografado camisa",
-
-    # ── Player issue / edição especial
-    "camisa futebol player issue",
-    "camisa futebol player edition",
-    "camisa futebol edição limitada numerada",
-    "camisa futebol versão jogador",
-
-    # ── Vintage / retro / Joia
+    "camisa autografada COA",
+    "camisa autografada PSA",
+    "camisa autografada Beckett",
+    # Retro / vintage / joia — sem player-específico (ML filtra por título depois)
     "camisa futebol vintage original",
     "camisa futebol retro original",
     "camisa copa do mundo original",
-    "camisa brasil 2002 original",
-    "camisa brasil 1998 original",
-    "camisa brasil 1994 original",
-    "camisa brasil 1970 original",
+    "camisa brasil original",
     "camisa libertadores original",
-    "camisa champions league original",
-    "camisa joia colecionador",
-    "camisa futebol original anos 90",
-    "camisa futebol original anos 80",
-    "camisa futebol original anos 2000",
+    "camisa futebol joia colecionador",
+    # Player issue
+    "camisa futebol player issue",
+    "camisa futebol edição limitada numerada",
 ]
 
 # ── FUTEBOL AR ─────────────────────────────────────────────────────────────────
 
 FOOTBALL_AR = [
-    # ── Autografado genérico (espanhol)
     "camiseta futbol autografiada",
     "camiseta futbol firmada jugador",
     "camiseta futbol match worn",
     "camiseta futbol autografiada COA",
-    "camiseta futbol autografiada certificado autenticidad",
     "camiseta futbol autografiada PSA",
-    "camiseta futbol autografiada Beckett",
-
-    # ── Campeões mundiais Argentina 1978 / 1986 / 2022
-    "maradona camiseta autografiada",
-    "kempes camiseta autografiada",
-    "ardiles camiseta autografiada",
-    "passarella camiseta autografiada",
-    "tapia autografiada",
-    "burruchaga camiseta autografiada",
-    "valdano camiseta autografiada",
-    "caniggia camiseta autografiada",
-    "messi camiseta autografiada",
-    "di maria camiseta autografiada",
-    "otamendi camiseta autografiada",
-    "de paul camiseta autografiada",
-    "lautaro martinez camiseta autografiada",
-    "martinez emi camiseta autografiada",
-
-    # ── Outras lendas AR
-    "batistuta camiseta autografiada",
-    "riquelme camiseta autografiada",
-    "tevez camiseta autografiada",
-    "zanetti camiseta autografiada",
-    "aguero camiseta autografiada",
-    "crespo camiseta autografiada",
-    "mascherano camiseta autografiada",
-    "veron camiseta autografiada",
-    "higuain camiseta autografiada",
-    "ortega camiseta autografiada",
-
-    # ── Lendas mundiais vendidas no AR
-    "beckham camiseta autografiada",
-    "ronaldinho camiseta autografiada",
-    "zidane camiseta autografiada",
-    "ronaldo nazario camiseta autografiada",
-    "totti camiseta autografiada",
-    "del piero camiseta autografiada",
-    "maldini camiseta autografiada",
-    "figo camiseta autografiada",
-    "henry camiseta autografiada",
-    "iniesta camiseta autografiada",
-    "mbappe camiseta autografiada",
-
-    # ── Player issue
+    "camiseta futbol vintage original",
+    "camiseta futbol retro original",
     "camiseta futbol player issue",
-    "camiseta futbol edicion limitada numerada",
 ]
 
 # ── BASQUETE (BR + AR) ─────────────────────────────────────────────────────────
 
 BASKETBALL = [
-    # ── Genérico NBA
     "camisa nba autografada",
     "jersey nba autografado",
-    "camiseta nba autografiada",
     "camisa basquete autografada",
-    "camiseta basquet autografiada",
-
-    # ── Ícones absolutos
-    "michael jordan camisa autografada",
-    "jordan bulls camisa autografada",
-    "kobe bryant camisa autografada",
-    "kobe lakers camisa autografada",
-    "lebron james camisa autografada",
-
-    # ── Lendas NBA
-    "magic johnson camisa autografada",
-    "larry bird camisa autografada",
-    "shaquille oneal camisa autografada",
-    "stephen curry camisa autografada",
-    "allen iverson camisa autografada",
-    "charles barkley camisa autografada",
-    "scottie pippen camisa autografada",
-    "dennis rodman camisa autografada",
-    "kevin durant camisa autografada",
-    "dwyane wade camisa autografada",
-    "dirk nowitzki camisa autografada",
-    "tim duncan camisa autografada",
-    "karl malone camisa autografada",
-    "patrick ewing camisa autografada",
-    "clyde drexler camisa autografada",
-    "isiah thomas camisa autografada",
-    "hakeem olajuwon camisa autografada",
-    "dominique wilkins camisa autografada",
-
-    # ── Modernos
-    "giannis autografado camisa",
-    "nikola jokic autografado camisa",
-    "luka doncic autografado camisa",
-    "jayson tatum autografado camisa",
-
-    # ── Player editions
     "camisa nba match worn",
     "jersey nba player edition",
-    "camisa nba game issued",
 ]
 
 # ── ENJOEI (subset otimizado) ──────────────────────────────────────────────────
