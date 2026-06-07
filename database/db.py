@@ -5,18 +5,36 @@ from sqlalchemy.orm import sessionmaker
 from config.settings import settings
 from .models import Base
 
-engine = create_async_engine(settings.database_url, echo=False)
+
+def _build_url(raw: str) -> str:
+    """Converte URLs do Railway/Heroku para o formato asyncio correto."""
+    if raw.startswith("postgres://"):
+        raw = raw.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif raw.startswith("postgresql://") and "+asyncpg" not in raw:
+        raw = raw.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return raw
+
+
+_url = _build_url(settings.database_url)
+_is_sqlite = "sqlite" in _url
+
+engine = create_async_engine(
+    _url,
+    echo=False,
+    **({} if not _is_sqlite else {"connect_args": {"check_same_thread": False}}),
+)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await _run_migrations()
+    if _is_sqlite:
+        await _sqlite_migrations()
 
 
-async def _run_migrations():
-    """Adiciona colunas novas sem destruir dados existentes."""
+async def _sqlite_migrations():
+    """Migrações de colunas novas — somente SQLite (Postgres usa create_all)."""
     migrations = [
         "ALTER TABLE listings ADD COLUMN purchased BOOLEAN DEFAULT 0",
         "ALTER TABLE listings ADD COLUMN purchased_at DATETIME",
@@ -28,7 +46,7 @@ async def _run_migrations():
             try:
                 await conn.execute(text(sql))
             except Exception:
-                pass  # Coluna já existe — ignora
+                pass
 
 
 async def get_db():
