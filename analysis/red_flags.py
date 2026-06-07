@@ -33,24 +33,32 @@ FAKE_PATTERNS = [
     r"\bimitaci[oó]n\b", r"\breproduc[ct]i[oó]n\b",  # ES-AR
 ]
 
-# Qualificadores REAIS de colecionador — APENAS autógrafo, match worn e COA
-# "vintage", "libertadores", "copa do mundo" foram removidos — são muito amplos
-# e passam qualquer réplica/produto em série
+# Qualificadores REAIS de colecionador
 COLLECTOR_QUALIFIERS = [
     # Autografado / assinado — PT e ES
     "autografad", "autógrafo", "autografo", "autograf",
     "assinad", "assinatura",
     "autografiada", "autografiado", "autógrafa",  # ES-AR
     "firmada", "firmado",  # ES: assinado
-    # Match worn — usado em jogo real (sinais fortes)
+    # Inglês (eBay / Vinted EN) — com espaço para não bater "consigned", "designed"
+    " signed ", "autographed",
+    # Francês (Vinted FR)
+    " signe ", " signee ", "dedicace", "dedicacee",
+    # Match worn — usado em jogo real
     "match worn", "usada em jogo", "usada no jogo", "player worn",
-    "game worn", "jogo pelo",
+    "game worn", "jogo pelo", "match issue",
     "usada en partido", "usada en juego",  # ES-AR
     # Certificações de autenticidade reconhecidas
     "coa", "certificado de autenticidade", "certificado de autenticidad",
     "psa", "beckett", "jsa", "sb brasil", "fabricks",
     # Elenco assinado (múltiplas assinaturas reais)
     "assinada elenco", "squad signed",
+    # Player issue / game used — camisa de jogo original, não produto comercial
+    "player issue", "player edition", "game issued", "game used",
+    # Peças únicas / raridade
+    "joia colecionador", "peca rara", "peca unica", "original rara",
+    "edicao limitada numerada", "edicion limitada numerada",
+    "numeracao limitada",
 ]
 
 # Termos que indicam replica moderna vendida como "retro" — NÃO é item de colecionador
@@ -256,7 +264,10 @@ def check_red_flags(listing: dict) -> list[RedFlag]:
 
     # ── 5. Versão jogador sem autógrafo/COA = camisa comercial cara, não colecionador
     PLAYER_VERSION_TERMS = ["versao jogador", "version jogador", "versão jogador", "version jugador"]
-    has_autograph_or_coa = any(t in text_n for t in ["autograf", "assinad", "firmad", "coa", "psa", "beckett", "jsa"])
+    has_autograph_or_coa = any(t in text_n for t in [
+        "autograf", "assinad", "firmad", "autographed",
+        "coa", "psa", "beckett", "jsa",
+    ]) or " signed " in padded or " signe " in padded
     if any(t in text_n for t in PLAYER_VERSION_TERMS) and not has_autograph_or_coa:
         flags.append(RedFlag(
             "PLAYER_VERSION_NO_AUTH", FlagLevel.CRITICAL,
@@ -271,7 +282,9 @@ def check_red_flags(listing: dict) -> list[RedFlag]:
     has_recent_year = any(y in text_n for y in RECENT_YEARS)
     is_strong_match_worn = any(m in text_n for m in [_normalize(m) for m in STRONG_MATCH_WORN])
     is_match_worn = is_strong_match_worn or any(m in text_n for m in [_normalize(m) for m in MATCH_WORN_TERMS])
-    has_autograph_claim = any(t in text_n for t in ["autograf", "assinad", "firmad"])
+    has_autograph_claim = any(t in text_n for t in [
+        "autograf", "assinad", "firmad", "autographed",
+    ]) or " signed " in padded or " signe " in padded
 
     # Caso clássico: marca + tamanho + ano recente = estoque de loja
     if has_brand and has_size and has_recent_year and not is_match_worn:
@@ -281,12 +294,13 @@ def check_red_flags(listing: dict) -> list[RedFlag]:
         ))
         return flags
 
-    # Tamanho no título + autógrafo = praticamente sempre silkado / estampado
-    # Exceção: match worn FORTE (usada em jogo, match worn, jogo pelo) pode ter tamanho descrito
-    if has_size and has_autograph_claim and not is_strong_match_worn:
+    # Múltiplos tamanhos + autógrafo = produção em série com autógrafo silkado.
+    # Um único tamanho descrito é legítimo — a regra original bloqueava demais.
+    size_count = sum(1 for s in JERSEY_SIZES if s in padded)
+    if size_count >= 2 and has_autograph_claim and not is_strong_match_worn:
         flags.append(RedFlag(
             "SIZE_AUTOGRAPH_JERSEY", FlagLevel.CRITICAL,
-            "Tamanho no anúncio + autógrafo = camisa fabricada com autógrafo silkado, não item único", 0
+            "Múltiplos tamanhos + autógrafo = camisa fabricada em série com autógrafo silkado", 0
         ))
         return flags
 
