@@ -113,20 +113,21 @@ GEMINI_MODEL = "gemini-2.0-flash-lite"
 _SONNET = "claude-sonnet-4-6"
 _HAIKU  = "claude-haiku-4-5-20251001"
 
-# Sinais de alto valor — usa Sonnet nesses casos
-_HIGH_VALUE_SIGNALS = [
-    "psa", "beckett", "jsa", "coa", "certificado",
-    "match worn", "usada em jogo", "player issue", "player edition",
-    "pelé", "pele", "maradona", "michael jordan", "kobe bryant",
-    "garrincha", "zico", "ronaldo fenomeno", "ronaldo r9",
-    "socrates", "sócrates", "tostao", "tostão", "jairzinho",
-    "carlos alberto", "kempes", "batistuta", "gullit", "van basten",
+# Sonnet apenas para ícones absolutos COM certificação no mesmo título.
+# Qualquer lenda sem PSA/Beckett/COA → Haiku (muito mais barato, qualidade suficiente).
+_SONNET_REQUIRED = [
+    "psa", "beckett", "jsa",  # certificação de terceiros reconhecida
+]
+_ICON_NAMES = [
+    "pelé", "pele", "maradona", "michael jordan", "kobe bryant", "garrincha",
 ]
 
 
 def _select_model(listing: dict) -> str:
     title = (listing.get("title") or "").lower()
-    if any(s in title for s in _HIGH_VALUE_SIGNALS):
+    has_cert = any(s in title for s in _SONNET_REQUIRED)
+    has_icon = any(s in title for s in _ICON_NAMES)
+    if has_cert and has_icon:
         return _SONNET
     return _HAIKU
 
@@ -187,26 +188,18 @@ async def extract_listing_data(listing: dict) -> dict:
         price=listing.get("price", 0),
     )
 
-    # Cadeia: Gemini → Anthropic → Mock
+    # Anthropic Haiku — rápido e barato. Sonnet apenas para ícones absolutos com COA/PSA.
     text = None
-
-    if settings.gemini_api_key:
-        try:
-            text = await _gemini_text(prompt)
-            logger.debug("[AI] Gemini OK")
-        except Exception as e:
-            logger.warning(f"[AI] Gemini falhou ({type(e).__name__}), tentando Anthropic...")
-
-    if text is None and settings.anthropic_api_key:
+    if settings.anthropic_api_key:
         model = _select_model(listing)
         try:
             text = await _call_anthropic_text(prompt, model)
-            logger.debug(f"[AI] Anthropic OK ({model.split('-')[1]})")
+            logger.debug(f"[AI] Anthropic OK ({model})")
         except Exception as e:
             logger.warning(f"[AI] Anthropic falhou: {e}")
 
     if text is None:
-        logger.warning("[AI] Todos os provedores falharam — usando mock")
+        logger.warning("[AI] Anthropic falhou — usando mock")
         return _mock_extract(listing)
 
     try:
@@ -227,9 +220,19 @@ async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
     if _mock_mode() or not image_urls:
         return _mock_vision(image_urls)
 
+    # Visão só vale a pena se houver autógrafo ou COA declarado no título.
+    # Para itens vintage/player issue sem autógrafo explícito, pular visão economiza custo.
+    title_lower = (listing.get("title") or "").lower() if listing else ""
+    _needs_vision = any(s in title_lower for s in [
+        "autografad", "assinad", "signed", "autographed", "signe",
+        "coa", "psa", "beckett", "jsa", "match worn",
+    ])
+    if not _needs_vision:
+        return {"authenticity_score": 55, "likely_fake": False, "visual_red_flags": []}
+
     images_b64 = []
     async with httpx.AsyncClient(timeout=15) as client:
-        for url in image_urls[:3]:
+        for url in image_urls[:2]:  # máx 2 imagens — reduz custo
             try:
                 resp = await client.get(url)
                 if resp.status_code == 200:
@@ -242,19 +245,11 @@ async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
     if not images_b64:
         return {"authenticity_score": 30, "likely_fake": False, "visual_red_flags": ["IMAGES_UNAVAILABLE"]}
 
-    # Cadeia: Gemini → Anthropic → fallback neutro
+    # Sempre Haiku para visão — Sonnet vision é 12x mais caro sem ganho relevante
     text = None
-
-    if settings.gemini_api_key:
+    if settings.anthropic_api_key:
         try:
-            text = await _gemini_vision(images_b64, VISION_PROMPT)
-        except Exception as e:
-            logger.warning(f"[Vision] Gemini falhou ({type(e).__name__}), tentando Anthropic...")
-
-    if text is None and settings.anthropic_api_key:
-        model = _select_model(listing or {})
-        try:
-            text = await _call_anthropic_vision(images_b64, VISION_PROMPT, model)
+            text = await _call_anthropic_vision(images_b64, VISION_PROMPT, _HAIKU)
         except Exception as e:
             logger.warning(f"[Vision] Anthropic falhou: {e}")
 

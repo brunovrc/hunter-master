@@ -262,6 +262,9 @@ def check_red_flags(listing: dict) -> list[RedFlag]:
         ))
         return flags
 
+    # padded precisa ser definido antes de qualquer check que o use
+    padded = f" {text_n} "
+
     # ── 5. Versão jogador sem autógrafo/COA = camisa comercial cara, não colecionador
     PLAYER_VERSION_TERMS = ["versao jogador", "version jogador", "versão jogador", "version jugador"]
     has_autograph_or_coa = any(t in text_n for t in [
@@ -276,7 +279,6 @@ def check_red_flags(listing: dict) -> list[RedFlag]:
         return flags
 
     # Detecta camisa fabricada: marca + tamanho + ano recente OU tamanho + autógrafo (produção em série)
-    padded = f" {text_n} "
     has_brand = any(b in padded for b in JERSEY_BRANDS)
     has_size = any(s in padded for s in JERSEY_SIZES)
     has_recent_year = any(y in text_n for y in RECENT_YEARS)
