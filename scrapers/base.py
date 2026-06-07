@@ -2,8 +2,29 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+# Anúncios mais velhos que isso são ignorados — radar só quer novidades
+_MAX_AGE_MINUTES = 150  # 2h30 (margem para ciclos atrasados)
+
+
+def is_recent(listed_at) -> bool:
+    """True se o anúncio foi criado nos últimos _MAX_AGE_MINUTES minutos."""
+    if listed_at is None:
+        return True  # sem timestamp → dedup cuida
+    try:
+        if isinstance(listed_at, (int, float)):
+            dt = datetime.fromtimestamp(listed_at, tz=timezone.utc)
+        elif isinstance(listed_at, str):
+            dt = datetime.fromisoformat(listed_at.replace("Z", "+00:00"))
+        else:
+            dt = listed_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() <= _MAX_AGE_MINUTES * 60
+    except Exception:
+        return True  # parse falhou → deixa passar
 
 from sqlalchemy import select
 

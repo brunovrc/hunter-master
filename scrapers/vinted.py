@@ -8,7 +8,7 @@ import httpx
 
 from config.search_terms import NEGATIVE_TITLE_TERMS, get_price_floor
 
-from .base import BaseScraper
+from .base import BaseScraper, is_recent
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,9 @@ class VintedScraper(BaseScraper):
             price_brl = price_local * rate
             floor = get_price_floor({"title": title, "price": price_brl})
             if price_brl < floor:
+                return None
+
+            if not is_recent(item.get("created_at_ts")):
                 return None
 
             item_id = str(item.get("id", ""))

@@ -3,7 +3,7 @@ import logging
 
 import httpx
 
-from .base import BaseScraper
+from .base import BaseScraper, is_recent
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +90,9 @@ class ShopeeScraper(BaseScraper):
             price = price_raw / 100_000  # Shopee usa preço * 100000
 
             if price < 100:
+                return None
+
+            if not is_recent(info.get("ctime")):
                 return None
 
             item_id = str(info.get("itemid", ""))

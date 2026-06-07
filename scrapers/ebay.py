@@ -9,7 +9,7 @@ import httpx
 from config.search_terms import NEGATIVE_TITLE_TERMS, get_price_floor
 from config.settings import settings
 
-from .base import BaseScraper
+from .base import BaseScraper, is_recent
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +106,13 @@ class EbayScraper(BaseScraper):
             price_brl = price_usd * USD_TO_BRL
             floor = get_price_floor({"title": title, "price": price_brl})
             if price_brl < floor:
+                return None
+
+            start_time = (
+                (item.get("listingInfo") or [{}])[0]
+                .get("startTime", [""])[0]
+            )
+            if not is_recent(start_time or None):
                 return None
 
             item_id = (item.get("itemId") or [""])[0]

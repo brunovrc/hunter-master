@@ -7,7 +7,7 @@ import httpx
 
 from config.search_terms import BASKETBALL, FOOTBALL_AR, NEGATIVE_TITLE_TERMS, get_price_floor
 
-from .base import BaseScraper
+from .base import BaseScraper, is_recent
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,9 @@ class MercadoLivreArgentinaScraper(BaseScraper):
             price_brl = price_ars * ARS_TO_BRL
             floor = get_price_floor({"title": title, "price": price_brl})
             if price_brl < floor:
+                return None
+
+            if not is_recent(item.get("date_created")):
                 return None
 
             item_id = str(item.get("id", ""))

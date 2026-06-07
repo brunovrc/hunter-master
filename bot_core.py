@@ -37,9 +37,9 @@ scrapers = [
     MercadoLivreArgentinaScraper(),
     VintedScraper(),
     ShopeeScraper(),
-    OLXScraper(),
-    EnjoeiScraper(),
     EbayScraper(),
+    # OLXScraper(),    # Playwright sem timestamp — sem filtro de idade confiável
+    # EnjoeiScraper(), # Playwright sem timestamp — sem filtro de idade confiável
 ]
 
 stats = {
