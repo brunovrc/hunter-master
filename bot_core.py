@@ -89,6 +89,18 @@ async def _process_listing(listing: dict):
     is_autographed = extracted.get("is_autographed", False)
     is_match_worn = extracted.get("is_match_worn", False)
 
+    # Se o título declara autógrafo/match worn, confia para fins de precificação.
+    # A IA rejeita fakes antes disso — aqui só queremos o preço correto.
+    title_lower = (listing.get("title") or "").lower()
+    _AUTO_SIGNALS = ["autografad", "autógrafo", "autografo", "autograf",
+                     "assinad", " signed ", "autographed", "signe"]
+    _MW_SIGNALS   = ["match worn", "usada em jogo", "usada no jogo",
+                     "player worn", "game worn", "match issue"]
+    if not is_autographed and any(s in title_lower for s in _AUTO_SIGNALS):
+        is_autographed = True
+    if not is_match_worn and any(s in title_lower for s in _MW_SIGNALS):
+        is_match_worn = True
+
     item_type = (
         "match_worn" if is_match_worn
         else "autografada" if is_autographed
