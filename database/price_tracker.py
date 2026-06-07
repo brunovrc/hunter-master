@@ -374,6 +374,17 @@ FALLBACK_PRICES = {
     "gremio_2017":                  445,   # Catálogo lote 44 — Libertadores, RARO
     "everton_2018_19_assinada":     900,   # Catálogo lote 9 — elenco completo, JOIA
 
+    # ── SQUAD SIGNED — seleções e clubes ─────────────────────────────────────
+    # Camisas assinadas pelo elenco completo valem mais que autógrafo único genérico
+    "selecao_brasil_copa98_squad":  4500,  # Brasil 98 (R9, Ronaldinho, Bebeto, Rivaldo…)
+    "selecao_brasil_copa2002_squad":5000,  # Brasil 2002 pentacampeão (R9, Ronaldinho, Rivaldo…)
+    "selecao_brasil_squad":         2800,  # seleção genérica squad signed
+    "selecao_argentina_squad":      2500,
+    "santos_squad":                 1800,  # Santos squad (clube histórico)
+    "flamengo_squad":               1800,
+    "generic_squad_signed":         2000,  # elenco de clube sem identificação
+    "generic_squad_autografada":    2000,
+
     # ── GENÉRICOS (fallback por tipo) ─────────────────────────────────────────
     "generic_autografada":         1200,
     "generic_autografado":         1200,
@@ -477,7 +488,38 @@ def _normalize_player(player_name: str) -> str:
     return _NAME_ALIASES.get(player_name.lower().strip(), "")
 
 
-async def get_sell_price_estimate(player_name: str, item_type: str = "autografada") -> float:
+_SQUAD_SIGNALS = [
+    "elenco", "jogadores", "squad signed", "assinada elenco", "assinado jogadores",
+    "varios jogadores", "varios autografos", "squad autografada",
+    "autografada jogadores", "autografado jogadores",
+]
+
+def _squad_key_from_title(title: str) -> str:
+    """Retorna chave de preço para squad signed baseada no título."""
+    t = title.lower()
+    if "brasil" in t or "seleção" in t or "selecao" in t or "cbf" in t:
+        if "98" in t or "1998" in t:
+            return "selecao_brasil_copa98_squad"
+        if "2002" in t or "02" in t:
+            return "selecao_brasil_copa2002_squad"
+        return "selecao_brasil_squad"
+    if "argentina" in t:
+        return "selecao_argentina_squad"
+    if "santos" in t:
+        return "santos_squad"
+    if "flamengo" in t:
+        return "flamengo_squad"
+    return "generic_squad_signed"
+
+
+async def get_sell_price_estimate(player_name: str, item_type: str = "autografada", title: str = "") -> float:
+    # 0. Squad signed — elenco assinado tem preço específico por time/era
+    if title and any(s in title.lower() for s in _SQUAD_SIGNALS):
+        key = _squad_key_from_title(title)
+        price = FALLBACK_PRICES.get(key, FALLBACK_PRICES["generic_squad_signed"])
+        logger.debug(f"[Price] Squad signed '{key}': R${price}")
+        return float(price)
+
     # 1. Tenta do banco de dados (preços reais coletados pelo tier3)
     if player_name:
         async with AsyncSessionLocal() as session:

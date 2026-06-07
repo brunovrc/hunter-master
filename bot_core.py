@@ -107,7 +107,7 @@ async def _process_listing(listing: dict):
         else "retro"
     )
 
-    sell_price = await get_sell_price_estimate(player_name, item_type)
+    sell_price = await get_sell_price_estimate(player_name, item_type, title=listing.get("title", ""))
     player_data = _find_player_data(listing["title"], extracted)
 
     era = extracted.get("year_era", "")
