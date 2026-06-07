@@ -7,15 +7,17 @@ from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+# sf=1 = mais recentes primeiro na OLX
 OLX_URLS = [
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+autografada",
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+assinada+jogador",
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+match+worn",
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+usada+em+jogo",
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+autografada+COA",
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+nba+autografada",
-    "https://www.olx.com.br/esportes-e-lazer?q=camisa+basquete+autografada",
+    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+autografada&sf=1",
+    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+assinada+jogador&sf=1",
+    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+match+worn&sf=1",
+    "https://www.olx.com.br/esportes-e-lazer?q=camisa+futebol+autografada+COA&sf=1",
+    "https://www.olx.com.br/esportes-e-lazer?q=camisa+nba+autografada&sf=1",
+    "https://www.olx.com.br/esportes-e-lazer?q=camisa+basquete+autografada&sf=1",
 ]
+
+_MAX_CARDS = 20
 
 
 class OLXScraper(BaseScraper):
@@ -46,7 +48,7 @@ class OLXScraper(BaseScraper):
                         "li[data-lurker-detail]"
                     )
 
-                    for card in cards:
+                    for card in cards[:_MAX_CARDS]:
                         parsed = await self._parse_card(card)
                         if parsed:
                             listings.append(parsed)

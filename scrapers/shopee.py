@@ -55,9 +55,9 @@ class ShopeeScraper(BaseScraper):
 
     async def _search(self, client: httpx.AsyncClient, query: str) -> list:
         params = {
-            "by": "relevancy",
+            "by": "ctime",
             "keyword": query,
-            "limit": 50,
+            "limit": 20,
             "newest": 0,
             "order": "desc",
             "page_type": "search",

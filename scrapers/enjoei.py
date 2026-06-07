@@ -8,7 +8,9 @@ from .base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://www.enjoei.com.br/s?q={}"
+BASE_URL = "https://www.enjoei.com.br/s?q={}&sort=recent"
+
+_MAX_CARDS = 20
 
 
 class EnjoeiScraper(BaseScraper):
@@ -29,9 +31,9 @@ class EnjoeiScraper(BaseScraper):
                         await human_delay(2.5, 5.0)
 
                         cards = await page.query_selector_all("div.c-product-card")
-                        logger.info(f"[Enjoei] '{query}': {len(cards)} cards")
+                        logger.info(f"[Enjoei] '{query}': {len(cards)} cards (limitando a {_MAX_CARDS})")
 
-                        for card in cards:
+                        for card in cards[:_MAX_CARDS]:
                             parsed = await self._parse_card(card)
                             if parsed:
                                 listings.append(parsed)

@@ -33,13 +33,13 @@ from scrapers.tier3_pricer import scrape_tier3_prices  # noqa: F401 — usado pe
 logger = logging.getLogger("hunter_master")
 
 scrapers = [
+    MercadoLivreScraper(),
+    MercadoLivreArgentinaScraper(),
+    VintedScraper(),
+    ShopeeScraper(),
+    OLXScraper(),
+    EnjoeiScraper(),
     EbayScraper(),
-    # MercadoLivreScraper(),
-    # MercadoLivreArgentinaScraper(),
-    # OLXScraper(),
-    # ShopeeScraper(),
-    # VintedScraper(),
-    # EnjoeiScraper(),
 ]
 
 stats = {
