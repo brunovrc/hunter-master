@@ -217,7 +217,7 @@ async def root(request: Request):
     user = _get_user(request)
     if not user:
         return RedirectResponse("/login", status_code=303)
-    return RedirectResponse("/home", status_code=303)
+    return RedirectResponse("/feed", status_code=303)
 
 
 @app.get("/login", response_class=HTMLResponse)
