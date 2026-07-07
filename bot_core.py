@@ -23,6 +23,7 @@ from notifications.telegram_bot import send_daily_report, send_health_alert, sen
 from notifications.whatsapp import send_whatsapp, send_whatsapp_daily_report
 from scrapers.ebay import EbayScraper
 from scrapers.enjoei import EnjoeiScraper
+from scrapers.enrichment import enrich_listings
 from scrapers.vinted import VintedScraper
 from scrapers.mercadolivre import MercadoLivreScraper
 from scrapers.mercadolivre_argentina import MercadoLivreArgentinaScraper
@@ -33,8 +34,8 @@ from scrapers.tier3_pricer import scrape_tier3_prices  # noqa: F401 — usado pe
 logger = logging.getLogger("hunter_master")
 
 scrapers = [
-    MercadoLivreScraper(),
-    MercadoLivreArgentinaScraper(),
+    # MercadoLivreScraper(),  # PAUSADO — busca bloqueada pelo ML (403 mesmo com OAuth + parede de verificação no site). Sem contorno responsável disponível.
+    # MercadoLivreArgentinaScraper(),  # PAUSADO — mesmo bloqueio do ML Brasil (endpoint /sites/MLA/search)
     VintedScraper(),
     ShopeeScraper(),
     # EbayScraper(),  # PAUSADO — Finding API descontinuada pelo eBay (fev/2025), precisa migrar para Browse API (OAuth2 + Cert ID)
@@ -273,19 +274,34 @@ async def run_hunter_cycle():
     except Exception as e:
         logger.warning(f"[RunLog] Erro ao criar: {e}")
 
+    candidates = []
     for scraper in scrapers:
         listings = await scraper.run()
         cycle_new += len(listings)
         stats["new"] += len(listings)
 
         for listing in listings:
-            try:
-                if not _has_collector_signal(listing):
-                    logger.debug(f"[Skip] Sem sinal colecionador: {listing.get('title', '')[:50]}")
-                    continue
-                await _process_listing(listing)
-            except Exception as e:
-                logger.error(f"Erro ao processar {listing.get('id')}: {e}")
+            if _has_collector_signal(listing):
+                candidates.append(listing)
+            else:
+                logger.debug(f"[Skip] Sem sinal colecionador: {listing.get('title', '')[:50]}")
+
+    if candidates:
+        # Enjoei/OLX só mandam a thumbnail de busca + description vazia por
+        # padrão — enriquece com a página de detalhe (descrição completa +
+        # galeria) só pros candidatos que já passaram no filtro barato acima,
+        # mantendo o custo de navegação extra restrito a quem já valeria o
+        # custo de IA de qualquer forma.
+        try:
+            candidates = await enrich_listings(candidates)
+        except Exception as e:
+            logger.error(f"[Enrich] Erro no lote de enriquecimento: {e}")
+
+    for listing in candidates:
+        try:
+            await _process_listing(listing)
+        except Exception as e:
+            logger.error(f"Erro ao processar {listing.get('id')}: {e}")
 
     try:
         drops = await check_price_drops()

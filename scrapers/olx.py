@@ -42,11 +42,11 @@ class OLXScraper(BaseScraper):
                     await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                     await asyncio.sleep(2)
 
-                    cards = await page.query_selector_all(
-                        "[data-ds-component='DS-AdCard'], "
-                        "[data-lurker-detail='result_card'], "
-                        "li[data-lurker-detail]"
-                    )
+                    # OLX trocou o layout — o seletor antigo (DS-AdCard /
+                    # data-lurker-detail) parou de bater com qualquer card,
+                    # fazendo o scraper retornar 0 itens silenciosamente.
+                    cards = await page.query_selector_all("section[class*='olx-adcard']")
+                    logger.info(f"[OLX] {url.split('?')[0].split('/')[-1]}: {len(cards)} cards")
 
                     for card in cards[:_MAX_CARDS]:
                         parsed = await self._parse_card(card)
