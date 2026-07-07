@@ -118,6 +118,59 @@ class PriceWatch(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ScoutSession(Base):
+    """
+    Uma visita a um colecionador/acervo. Agrupa várias avaliações (ScoutEvaluation)
+    feitas em sequência pelo app Hunter Scout.
+    """
+    __tablename__ = "scout_sessions"
+
+    id = Column(Integer, primary_key=True)
+    collector_name = Column(String, default="")
+    location = Column(String, default="")
+    notes = Column(Text, default="")
+    started_at = Column(DateTime, default=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+
+
+class ScoutEvaluation(Base):
+    """
+    Avaliação individual de uma camisa feita em campo via fotos + IA.
+    Independente do pipeline de scraping — não tem external_id/platform.
+    """
+    __tablename__ = "scout_evaluations"
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(Integer, index=True, nullable=True)
+
+    images = Column(Text)  # JSON list de data URIs (base64) — ver scout/analyzer.py
+    user_notes = Column(Text, default="")
+
+    player_name = Column(String, default="")
+    club = Column(String, default="")
+    year_era = Column(String, default="")
+    item_type = Column(String, default="")  # autografada | match_worn | retro | player_issue
+    condition = Column(String, default="")  # excelente | boa | regular | ruim
+
+    is_autographed = Column(Boolean, default=False)
+    is_match_worn = Column(Boolean, default=False)
+    has_coa = Column(Boolean, default=False)
+    signature_looks_genuine = Column(Boolean, nullable=True)
+    replica_suspicion = Column(Boolean, default=False)
+    authenticity_score = Column(Integer, default=0)
+
+    identified_text = Column(Text, default="")  # o que a IA leu nas fotos
+    ai_notes = Column(Text, default="")
+    raw_ai_json = Column(Text, default="")  # resposta bruta, para debug/auditoria
+
+    sell_price_estimate = Column(Float, default=0)
+    offer_min = Column(Float, default=0)
+    offer_max = Column(Float, default=0)
+    recommendation = Column(String, default="")  # COMPRAR | NEGOCIAR | VERIFICAR
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class RarityIndex(Base):
     """
     Índice de raridade baseado no histórico do próprio banco.

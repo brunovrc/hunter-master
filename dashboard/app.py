@@ -10,44 +10,18 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import desc, func, select
 
 from config.settings import settings
+from dashboard.auth import get_user as _get_user
+from dashboard.auth import make_session_token as _make_session_token
+from dashboard.auth import require_user as _require_user
 from database.db import AsyncSessionLocal, init_db
 from database.models import Listing, RunLog
 
 logger = logging.getLogger(__name__)
-
-# ── Auth ──────────────────────────────────────────────────────────────────────
-
-_signer = URLSafeTimedSerializer(settings.dashboard_secret_key)
-
-
-def _make_session_token(username: str) -> str:
-    return _signer.dumps(username, salt="session")
-
-
-def _verify_session_token(token: str) -> Optional[str]:
-    try:
-        return _signer.loads(token, salt="session", max_age=86400 * 7)
-    except (BadSignature, SignatureExpired):
-        return None
-
-
-def _get_user(request: Request) -> Optional[str]:
-    token = request.cookies.get("session")
-    if not token:
-        return None
-    return _verify_session_token(token)
-
-
-def _require_user(request: Request) -> str:
-    user = _get_user(request)
-    if not user:
-        raise HTTPException(status_code=303, headers={"Location": "/login"})
-    return user
 
 
 # ── Bot state ─────────────────────────────────────────────────────────────────
@@ -102,6 +76,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Hunter Master", lifespan=lifespan)
 templates = Jinja2Templates(directory="dashboard/templates")
+app.mount("/static", StaticFiles(directory="dashboard/static"), name="static")
+
+from dashboard.scout_routes import router as scout_router  # noqa: E402
+app.include_router(scout_router)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
