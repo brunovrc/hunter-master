@@ -144,11 +144,14 @@ class VintedScraper(BaseScraper):
             if url and not url.startswith("http"):
                 url = base_url + url
 
+            # A API do Vinted já retorna todas as fotos no catálogo — sem custo
+            # extra pegar várias em vez de só a primeira (isso alimenta a IA de
+            # visão com mais evidência: etiqueta, autógrafo, COA em fotos separadas)
             photos = item.get("photos", [])
-            img = ""
-            if photos:
-                photo = photos[0]
-                img = photo.get("full_size_url") or photo.get("url", "")
+            images = [
+                (p.get("full_size_url") or p.get("url", ""))
+                for p in photos[:4] if p.get("full_size_url") or p.get("url")
+            ]
 
             user = item.get("user", {})
             feedback = float(user.get("feedback_reputation") or 1.0)
@@ -159,7 +162,7 @@ class VintedScraper(BaseScraper):
                 "description": item.get("description", ""),
                 "price": price_brl,
                 "url": url,
-                "images": [img] if img else [],
+                "images": images,
                 "seller_id": str(user.get("id", "")),
                 "seller_name": user.get("login", ""),
                 "seller_ratings": 0,

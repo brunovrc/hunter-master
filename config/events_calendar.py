@@ -67,6 +67,14 @@ GLOBAL_EVENTS = [
         "categoria": "aniversario",
     },
     {
+        "id": "pele_cosmos_despedida_50anos",
+        "descricao": "50 anos da despedida de Pelé (Cosmos x Santos, 01/10/1977)",
+        "data": date(2027, 10, 1),
+        "boost_base": 30,
+        "tags": ["pele", "cosmos", "santos", "icon"],
+        "categoria": "aniversario",
+    },
+    {
         "id": "brasil_copa94_30anos",
         "descricao": "30 anos da Copa do Mundo 1994 (Romário, Bebeto)",
         "data": date(2024, 7, 17),

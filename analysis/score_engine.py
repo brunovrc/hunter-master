@@ -261,7 +261,13 @@ def run_score_engine(
     auth_score_raw = claude_analysis.get("authenticity_score", 50)
 
     # Suspeita de falsidade (IA) → FLAG AUTENTICADOR
-    if claude_analysis.get("likely_fake") or claude_analysis.get("fake_suspicion"):
+    # Só veta de fato quando o boolean likely_fake/fake_suspicion vem ACOMPANHADO
+    # de uma nota de autenticidade baixa. A IA às vezes marca likely_fake=true só
+    # porque as fotos disponíveis não mostram claramente o COA/autógrafo (ex: só
+    # 1 foto capturada pelo scraper) — isso é incerteza por falta de evidência,
+    # não evidência de fraude. Se a própria IA ainda credita ~50/100 de
+    # autenticidade, é sinal contraditório/inconclusivo, não suspeita real.
+    if (claude_analysis.get("likely_fake") or claude_analysis.get("fake_suspicion")) and auth_score_raw < 40:
         recommendation = Recommendation.FLAG_AUTHENTICATOR
         suggested_offer = None
         reasoning = "IA detectou suspeita de falsidade — verificar com autenticador antes de comprar"

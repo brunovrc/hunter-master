@@ -48,7 +48,13 @@ VISION_PROMPT = """Analise autenticidade desta camisa esportiva autografada. JSO
 
 {{"signature_looks_genuine":true,"signature_confidence":60,"autopen_suspected":false,"labels_consistent":true,"likely_fake":false,"visual_red_flags":[],"authenticity_score":60,"notes":""}}
 
-Verifique: autógrafo é de mão (traço orgânico) ou impresso/autopen? COA visível? Camisa original ou réplica? Retorne JSON preenchido."""
+Verifique: autógrafo é de mão (traço orgânico) ou impresso/autopen? COA visível? Camisa original ou réplica?
+
+IMPORTANTE: likely_fake=true é só para quando você VÊ evidência concreta de falsificação
+(autopen visível, réplica óbvia, logo malfeito). Se as fotos simplesmente não mostram o
+COA/autógrafo com clareza (foto de capa genérica, sem close-up), isso é falta de evidência,
+não evidência de fraude — nesse caso likely_fake=false e authenticity_score em torno de 45-55,
+mencionando em notes que fotos adicionais seriam necessárias para confirmar."""
 
 
 def _mock_extract(listing: dict) -> dict:
@@ -223,7 +229,9 @@ async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
 
     images_b64 = []
     async with httpx.AsyncClient(timeout=15) as client:
-        for url in image_urls[:1]:  # 1 imagem basta para triagem — corta custo pela metade
+        # 2 imagens — 1 só falha em pegar COA/etiqueta quando não é a foto de capa
+        # (caso real: camisa com COA que a IA não viu por só ter recebido 1 foto)
+        for url in image_urls[:2]:
             try:
                 resp = await client.get(url)
                 if resp.status_code == 200:

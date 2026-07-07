@@ -25,7 +25,7 @@ PLAYERS = {
         "preco_referencia": {"autografada": 12000, "match_worn": 30000, "retro": 2500},
         "copa_2026": False, "controversias_ativas": [],
         "eventos_futuros": [],
-        "tags": ["santos", "brasil", "copa58", "copa62", "copa70", "icon"],
+        "tags": ["santos", "brasil", "copa58", "copa62", "copa70", "icon", "pele", "cosmos"],
     },
 
     "zico": {
