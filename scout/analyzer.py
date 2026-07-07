@@ -62,6 +62,25 @@ Contexto extra informado pelo usuário: {user_notes}
 Retorne o JSON preenchido."""
 
 
+FOLLOWUP_PROMPT = """Você já analisou esta camisa esportiva de colecionador anteriormente, \
+com o seguinte resultado (mesmas fotos anexadas agora):
+
+Jogador: {player_name}
+Clube: {club}
+Época: {year_era}
+Tipo: {item_type}
+Autografada: {is_autographed}
+COA: {has_coa}
+Autenticidade: {authenticity_score}/100
+Observações anteriores: {ai_notes}
+
+O usuário tem uma pergunta de acompanhamento sobre esta MESMA camisa. Responda em português, \
+direto e objetivo, baseado no que você vê nas fotos e no contexto acima. Se a pergunta pedir \
+algo que não dá pra confirmar pelas fotos disponíveis, diga isso claramente em vez de inventar.
+
+Pergunta do usuário: {question}"""
+
+
 def _parse_json(text: str) -> dict:
     start = text.find("{")
     end = text.rfind("}") + 1
@@ -148,3 +167,42 @@ async def evaluate_jersey(images: list[tuple[bytes, str]], user_notes: str = "")
     except Exception as e:
         logger.error(f"[Scout] Falha ao interpretar resposta da IA: {e} | raw: {text[:300]}")
         return VisionResult(notes="A IA retornou um formato inesperado — revise manualmente.")
+
+
+async def ask_followup(images: list[tuple[bytes, str]], context: dict, question: str) -> str:
+    """
+    Responde uma pergunta de acompanhamento sobre uma avaliação já feita,
+    reaproveitando as mesmas fotos + o resultado da análise original como
+    contexto — sem precisar tirar foto de novo.
+    """
+    if not settings.gemini_api_key and not settings.anthropic_api_key:
+        return "Nenhuma API de IA configurada — não é possível responder agora."
+
+    prompt = FOLLOWUP_PROMPT.format(
+        player_name=context.get("player_name") or "não identificado",
+        club=context.get("club") or "não identificado",
+        year_era=context.get("year_era") or "não identificada",
+        item_type=context.get("item_type") or "desconhecido",
+        is_autographed=context.get("is_autographed"),
+        has_coa=context.get("has_coa"),
+        authenticity_score=context.get("authenticity_score"),
+        ai_notes=context.get("ai_notes") or "(nenhuma)",
+        question=question,
+    )
+
+    text = None
+    if settings.gemini_api_key:
+        try:
+            text = await _gemini_vision(images, prompt)
+            logger.info("[Scout] Pergunta de acompanhamento via Gemini OK")
+        except Exception as e:
+            logger.warning(f"[Scout] Pergunta via Gemini falhou: {e}")
+
+    if text is None and settings.anthropic_api_key:
+        try:
+            text = await _anthropic_vision(images, prompt)
+            logger.info("[Scout] Pergunta de acompanhamento via Haiku OK")
+        except Exception as e:
+            logger.warning(f"[Scout] Pergunta via Haiku falhou: {e}")
+
+    return text or "Não foi possível obter resposta da IA agora. Tente novamente em instantes."

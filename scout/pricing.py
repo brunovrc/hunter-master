@@ -9,6 +9,7 @@ para SUGERIR quanto oferecer. Por isso a margem exigida é mais conservadora
 que a do radar (que já parte de um preço de compra conhecido e barato).
 """
 from database.price_tracker import get_sell_price_estimate
+from scout.comparables import find_comparables
 from scout.schemas import ScoutResult, VisionResult
 
 # Desconto sobre o preço de venda conforme o estado físico da peça.
@@ -46,6 +47,8 @@ async def build_scout_result(vision: VisionResult) -> ScoutResult:
     sell_price = await get_sell_price_estimate(vision.player_name, item_type, title=title)
     sell_price *= _CONDITION_MULTIPLIER.get(vision.condition, 1.0)
 
+    comparables = await find_comparables(vision.player_name, vision.club)
+
     # Réplica suspeita ou autenticidade muito baixa → não sugerir compra numérica
     if vision.replica_suspicion or vision.authenticity_score < 30:
         if vision.replica_suspicion:
@@ -69,6 +72,7 @@ async def build_scout_result(vision: VisionResult) -> ScoutResult:
             sell_price_estimate=round(sell_price, 2), offer_min=0, offer_max=0,
             recommendation="VERIFICAR",
             recommendation_reason=reason,
+            comparables=comparables,
         )
 
     if vision.authenticity_score >= 80:
@@ -103,4 +107,5 @@ async def build_scout_result(vision: VisionResult) -> ScoutResult:
         sell_price_estimate=round(sell_price, 2),
         offer_min=round(offer_min, 2), offer_max=round(offer_max, 2),
         recommendation=recommendation, recommendation_reason=reason,
+        comparables=comparables,
     )

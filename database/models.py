@@ -171,6 +171,20 @@ class ScoutEvaluation(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ScoutQuestion(Base):
+    """
+    Pergunta de acompanhamento feita pelo usuário sobre uma avaliação já
+    feita — permite pedir mais detalhes à IA sem precisar tirar foto de novo.
+    """
+    __tablename__ = "scout_questions"
+
+    id = Column(Integer, primary_key=True)
+    evaluation_id = Column(Integer, index=True)
+    question = Column(Text, default="")
+    answer = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class RarityIndex(Base):
     """
     Índice de raridade baseado no histórico do próprio banco.

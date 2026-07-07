@@ -143,6 +143,41 @@
 
   .notes-box { font-size: 12.5px; color: var(--fg2); line-height: 1.5; margin-top: 8px; }
 
+  /* Comparáveis */
+  .comp-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .comp-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--card-hi); border: 1px solid var(--border-hi); border-radius: 9px;
+    padding: 9px 11px; text-decoration: none;
+  }
+  .comp-item .comp-info { min-width: 0; flex: 1; }
+  .comp-item .comp-title {
+    font-size: 12px; font-weight: 600; color: var(--fg1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .comp-item .comp-meta { font-size: 10.5px; color: var(--fg3); margin-top: 2px; text-transform: capitalize; }
+  .comp-item .comp-price { font-size: 13px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+  .comp-empty { font-size: 12px; color: var(--fg3); margin-top: 8px; }
+
+  /* Pergunta de acompanhamento */
+  .ask-box { margin-top: 14px; }
+  .ask-row { display: flex; gap: 8px; }
+  .ask-row input {
+    flex: 1; background: var(--card); border: 1px solid var(--border-hi); border-radius: 10px;
+    padding: 11px 13px; color: var(--fg); font-size: 13.5px; outline: none; font-family: inherit;
+  }
+  .ask-row input:focus { border-color: var(--accent); }
+  .ask-row input::placeholder { color: var(--fg3); }
+  .ask-send {
+    background: var(--accent); color: #09090b; border: none; border-radius: 10px;
+    padding: 0 16px; font-weight: 800; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .ask-send:disabled { opacity: .4; cursor: not-allowed; }
+  .qa-thread { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .qa-item { font-size: 12.5px; }
+  .qa-q { color: var(--fg1); font-weight: 700; }
+  .qa-a { color: var(--fg2); line-height: 1.5; margin-top: 3px; }
+
   .btn-reset {
     width: 100%; margin-top: 4px; padding: 13px; border-radius: 12px;
     background: transparent; border: 1px solid var(--border-hi); color: var(--fg1);
@@ -206,6 +241,7 @@ let photos = [];        // [{blob, url}]
 let sessionId = localStorage.getItem('scout_session_id') || null;
 let sessionCount = parseInt(localStorage.getItem('scout_session_count') || '0', 10);
 let sessionOfferTotal = parseFloat(localStorage.getItem('scout_session_offer_total') || '0');
+let currentEvaluationId = null;
 
 function fmtBRL(v) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -398,6 +434,20 @@ function renderResult(r) {
   if (r.replica_suspicion) badges.push(`<span class="mini-badge warn">⚠️ Suspeita de réplica</span>`);
   if (!badges.length) badges.push(`<span class="mini-badge neutral">Sem sinais especiais</span>`);
 
+  const comps = r.comparables || [];
+  const compHtml = comps.length
+    ? `<div class="comp-list">${comps.map(c => `
+        <a class="comp-item" href="${c.url}" target="_blank" rel="noopener">
+          <div class="comp-info">
+            <div class="comp-title">${c.title}</div>
+            <div class="comp-meta">${c.platform}${c.source === 'vinted_live' ? ' · disponível agora' : ' · visto no radar'}</div>
+          </div>
+          <div class="comp-price">${fmtBRL(c.price)}</div>
+        </a>`).join('')}</div>`
+    : `<div class="comp-empty">Nenhuma camisa parecida encontrada no radar ou no Vinted agora.</div>`;
+
+  currentEvaluationId = r.evaluation_id;
+
   document.getElementById('result').innerHTML = `
     <div class="rec-banner ${cls}">
       <div>
@@ -423,14 +473,67 @@ function renderResult(r) {
       ${r.ai_notes ? `<div class="notes-box">${r.ai_notes}</div>` : ''}
       ${r.identified_text ? `<div class="notes-box"><b>Texto identificado:</b> ${r.identified_text}</div>` : ''}
     </div>
+
+    <div class="section-title" style="margin-top:16px;">Camisas parecidas</div>
+    ${compHtml}
+
+    <div class="section-title" style="margin-top:16px;">Pergunte mais sobre essa camisa</div>
+    <div class="ask-box">
+      <div class="qa-thread" id="qa-thread"></div>
+      <div class="ask-row">
+        <input id="ask-input" type="text" placeholder="Ex: parece original de 1994 ou reedição?" onkeydown="if(event.key==='Enter'){event.preventDefault();askQuestion();}">
+        <button class="ask-send" id="ask-send" onclick="askQuestion()">Perguntar</button>
+      </div>
+    </div>
+
     <button class="btn-reset" onclick="resetCapture()">Nova avaliação</button>
   `;
   document.getElementById('result').classList.add('show');
   document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function appendQA(question, answer) {
+  const thread = document.getElementById('qa-thread');
+  if (!thread) return;
+  const item = document.createElement('div');
+  item.className = 'qa-item';
+  item.innerHTML = `<div class="qa-q">${question}</div><div class="qa-a">${answer}</div>`;
+  thread.appendChild(item);
+}
+
+async function askQuestion() {
+  const input = document.getElementById('ask-input');
+  const btn = document.getElementById('ask-send');
+  const question = (input.value || '').trim();
+  if (!question || !currentEvaluationId) return;
+
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = '...';
+
+  const body = new FormData();
+  body.append('question', question);
+
+  try {
+    const r = await fetch(`/scout/api/evaluation/${currentEvaluationId}/ask`, { method: 'POST', body });
+    const j = await r.json();
+    if (r.ok && j.ok !== false) {
+      appendQA(j.question, j.answer);
+      input.value = '';
+    } else {
+      showError(j.detail || 'Erro ao perguntar. Tente de novo.');
+    }
+  } catch (e) {
+    showError('Erro de conexão ao perguntar.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
 function resetCapture() {
   photos = [];
+  currentEvaluationId = null;
   document.getElementById('user-notes').value = '';
   document.getElementById('result').classList.remove('show');
   document.getElementById('result').innerHTML = '';

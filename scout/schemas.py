@@ -41,6 +41,16 @@ class VisionResult(BaseModel):
         return v if v in _VALID_ITEM_TYPES else "desconhecido"
 
 
+class Comparable(BaseModel):
+    """Item parecido usado como referência de preço/mercado."""
+
+    title: str
+    price: float
+    url: str
+    platform: str
+    source: str  # "radar" (nosso banco) | "vinted_live" (busca ao vivo)
+
+
 class ScoutResult(BaseModel):
     """Resultado final mostrado ao usuário — vision + preço + oferta."""
 
@@ -63,3 +73,4 @@ class ScoutResult(BaseModel):
     offer_max: float
     recommendation: str  # COMPRAR | NEGOCIAR | VERIFICAR
     recommendation_reason: str
+    comparables: list[Comparable] = []

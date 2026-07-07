@@ -21,8 +21,8 @@ from sqlalchemy import desc, select
 
 from dashboard.auth import require_user
 from database.db import AsyncSessionLocal
-from database.models import ScoutEvaluation, ScoutSession
-from scout.analyzer import evaluate_jersey
+from database.models import ScoutEvaluation, ScoutQuestion, ScoutSession
+from scout.analyzer import ask_followup, evaluate_jersey
 from scout.pricing import build_scout_result
 
 logger = logging.getLogger(__name__)
@@ -191,6 +191,68 @@ async def evaluate(
     payload = result.model_dump()
     payload["evaluation_id"] = row.id
     return JSONResponse({"ok": True, **payload})
+
+
+# ── Pergunta de acompanhamento ────────────────────────────────────────────────
+# Deixa o usuário pedir mais detalhes sobre uma avaliação já feita, sem
+# precisar tirar foto de novo — reaproveita as mesmas fotos + contexto salvo.
+
+def _decode_stored_images(images_json: str) -> list[tuple[bytes, str]]:
+    import base64
+    data_uris = json.loads(images_json) if images_json else []
+    result = []
+    for uri in data_uris:
+        try:
+            header, b64data = uri.split(",", 1)
+            mime = header.split(":")[1].split(";")[0]
+            result.append((base64.standard_b64decode(b64data), mime))
+        except Exception:
+            continue
+    return result
+
+
+@router.post("/scout/api/evaluation/{evaluation_id}/ask")
+async def ask_about_evaluation(request: Request, evaluation_id: int, question: str = Form(...)):
+    require_user(request)
+    question = question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Digite uma pergunta.")
+
+    async with AsyncSessionLocal() as session:
+        row = await session.get(ScoutEvaluation, evaluation_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Avaliação não encontrada.")
+
+        images = _decode_stored_images(row.images)
+        context = {
+            "player_name": row.player_name, "club": row.club, "year_era": row.year_era,
+            "item_type": row.item_type, "is_autographed": row.is_autographed,
+            "has_coa": row.has_coa, "authenticity_score": row.authenticity_score,
+            "ai_notes": row.ai_notes,
+        }
+
+        answer = await ask_followup(images, context, question)
+
+        q_row = ScoutQuestion(evaluation_id=evaluation_id, question=question, answer=answer)
+        session.add(q_row)
+        await session.commit()
+
+    return JSONResponse({"ok": True, "question": question, "answer": answer})
+
+
+@router.get("/scout/api/evaluation/{evaluation_id}/questions")
+async def list_questions(request: Request, evaluation_id: int):
+    require_user(request)
+    async with AsyncSessionLocal() as session:
+        rows = (await session.execute(
+            select(ScoutQuestion)
+            .where(ScoutQuestion.evaluation_id == evaluation_id)
+            .order_by(ScoutQuestion.created_at)
+        )).scalars().all()
+    return JSONResponse({
+        "ok": True,
+        "questions": [{"question": r.question, "answer": r.answer} for r in rows],
+    })
 
 
 # ── Histórico (desktop) ────────────────────────────────────────────────────────
