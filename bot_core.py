@@ -37,7 +37,7 @@ scrapers = [
     MercadoLivreArgentinaScraper(),
     VintedScraper(),
     ShopeeScraper(),
-    EbayScraper(),
+    # EbayScraper(),  # PAUSADO — Finding API descontinuada pelo eBay (fev/2025), precisa migrar para Browse API (OAuth2 + Cert ID)
     OLXScraper(),
     EnjoeiScraper(),
 ]
