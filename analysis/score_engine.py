@@ -257,8 +257,8 @@ def run_score_engine(
 
     total_score = min(100, max(0, sum(f.score for f in filters) - penalty))
 
-    f1_result = filters[0]
     f2_result = filters[1]
+    auth_score_raw = claude_analysis.get("authenticity_score", 50)
 
     # Suspeita de falsidade (IA) → FLAG AUTENTICADOR
     if claude_analysis.get("likely_fake") or claude_analysis.get("fake_suspicion"):
@@ -266,11 +266,15 @@ def run_score_engine(
         suggested_offer = None
         reasoning = "IA detectou suspeita de falsidade — verificar com autenticador antes de comprar"
 
-    # Sem COA e autenticidade não verificável
-    elif f2_result.score == 0:
+    # Autenticidade REALMENTE baixa (suspeita concreta, não só "não confirmada")
+    # — abaixo de 50 já é 0/25 no filtro F2, mas só forçamos o veto quando a IA
+    # está de fato desconfiada (<30). Entre 30-49 o item segue no fluxo normal:
+    # a nota baixa já puxa o total_score pra baixo sozinha, sem vetar de cara
+    # boas oportunidades com margem/raridade/vendedor fortes só por incerteza.
+    elif auth_score_raw < 30:
         recommendation = Recommendation.FLAG_AUTHENTICATOR
         suggested_offer = None
-        reasoning = "Autenticidade não verificável — encaminhar para autenticador"
+        reasoning = f"IA reporta autenticidade muito baixa ({auth_score_raw}/100) — encaminhar para autenticador"
 
     # Lucro absoluto insuficiente
     elif absolute_profit < MIN_ABSOLUTE_PROFIT:

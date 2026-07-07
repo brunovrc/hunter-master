@@ -193,9 +193,14 @@ NON_SPORTS_EXCLUSIONS = [
     "kit 4 ", "kit 3 ", "kit 2 camisas",
     # Futebol americano (não é o foco)
     "nfl", "touchdown", "quarterback", "super bowl",
-    # Rugby — não é o foco
+    # Rugby — não é o foco. Times/seleções nem sempre têm a palavra "rugby" no
+    # título (ex: "Manu Samoa Training Jersey" vazou por não bater nenhum termo).
     "rugby", "saracens", "all blacks", "haka", "six nations", "rugby union",
-    "rugby league", "premiership rugby", "top 14",
+    "rugby league", "premiership rugby", "top 14", "gallagher premiership",
+    "manu samoa", "ikale tahi", "flying fijians", "wallabies", "springboks",
+    "los pumas", "pumas rugby", "brave blossoms", "chiefs rugby", "crusaders rugby",
+    "hurricanes rugby", "highlanders rugby", "scrum", "lineout", "try line",
+    "british and irish lions", "urc rugby", "gaa", "hurling", "gaelic football",
     # F1/motor — apenas capacete/macacão (camisa de F1 pode ser aceita em edge cases)
     "capacete", "helmet", "macacão piloto",
     # Itens comemorativos não-esportivos

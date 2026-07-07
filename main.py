@@ -15,7 +15,7 @@ async def _run_bot_only():
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from apscheduler.triggers.cron import CronTrigger
     from apscheduler.triggers.interval import IntervalTrigger
-    from bot_core import run_health_check, run_hunter_cycle, run_daily_report
+    from bot_core import run_health_check, run_hunter_cycle, run_daily_report, run_stale_cleanup
     from bot_core import scrape_tier3_prices  # noqa: F401
     from config.settings import settings
     from database.db import init_db
@@ -27,6 +27,7 @@ async def _run_bot_only():
     scheduler.add_job(run_hunter_cycle, IntervalTrigger(minutes=settings.scan_interval_minutes))
     scheduler.add_job(run_daily_report, CronTrigger(hour=20, minute=0))
     scheduler.add_job(run_health_check, IntervalTrigger(hours=2))
+    scheduler.add_job(run_stale_cleanup, CronTrigger(hour=4, minute=0))
     scheduler.start()
 
     await run_hunter_cycle()

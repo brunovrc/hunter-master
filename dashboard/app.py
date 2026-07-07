@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Banco de dados inicializado")
 
-    from bot_core import run_hunter_cycle, run_daily_report, run_health_check
+    from bot_core import run_hunter_cycle, run_daily_report, run_health_check, run_stale_cleanup
     from scrapers.tier3_pricer import scrape_tier3_prices
 
     _scheduler = AsyncIOScheduler()
@@ -59,6 +59,7 @@ async def lifespan(app: FastAPI):
     _scheduler.add_job(scrape_tier3_prices, CronTrigger(hour=3, minute=0), id="tier3")
     _scheduler.add_job(run_daily_report, CronTrigger(hour=20, minute=0), id="daily_report")
     _scheduler.add_job(run_health_check, IntervalTrigger(hours=2), id="health_check")
+    _scheduler.add_job(run_stale_cleanup, CronTrigger(hour=4, minute=0), id="stale_cleanup")
     _scheduler.start()
 
     _next_cycle = datetime.now() + timedelta(minutes=settings.scan_interval_minutes)
@@ -231,7 +232,7 @@ async def feed(
     request: Request,
     filter: str = "all",
     category: str = "all",
-    period: str = "all",
+    period: str = "7d",
     page: int = 1,
     per_page: int = 20,
 ):

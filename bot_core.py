@@ -5,7 +5,7 @@ Separado de main.py para permitir import pelo dashboard sem circular dependency.
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from analysis.claude_analyzer import analyze_images, extract_listing_data
 from analysis.red_flags import check_red_flags, has_critical_flag
@@ -332,3 +332,27 @@ async def run_health_check():
     broken = [s.name for s in scrapers if s.circuit_breaker.paused_until]
     if broken:
         await send_health_alert(f"Scrapers com circuit breaker ativo: {', '.join(broken)}")
+
+
+# Janela de oportunidade: se ninguém comprou/descartou em 14 dias, o item
+# provavelmente já foi vendido a outra pessoa — arquivar evita que o feed
+# vire um catálogo de camisa velha em vez de radar de oportunidade.
+_STALE_LISTING_DAYS = 14
+
+
+async def run_stale_cleanup():
+    from sqlalchemy import update as sa_update
+    cutoff = datetime.utcnow() - timedelta(days=_STALE_LISTING_DAYS)
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            sa_update(Listing)
+            .where(
+                Listing.created_at < cutoff,
+                Listing.discarded == False,
+                Listing.purchased == False,
+            )
+            .values(discarded=True)
+        )
+        await session.commit()
+        if result.rowcount:
+            logger.info(f"[Cleanup] {result.rowcount} anúncios com +{_STALE_LISTING_DAYS}d arquivados automaticamente")
