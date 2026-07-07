@@ -80,7 +80,12 @@ async def _process_listing(listing: dict):
         logger.debug(f"[Pipeline] Personalizada descartada: {listing.get('title', '')[:50]}")
         return
 
-    vision = await analyze_images(listing.get("images", []), listing)
+    # Visão só depois que o texto confirmou autógrafo/match worn —
+    # evita baixar imagem e gastar visão em item que a extração já descartou
+    if extracted.get("is_autographed") or extracted.get("is_match_worn"):
+        vision = await analyze_images(listing.get("images", []), listing)
+    else:
+        vision = {}
     claude_analysis = {**extracted, **vision}
 
     if claude_analysis.get("likely_fake") or claude_analysis.get("autopen_suspected"):
@@ -117,6 +122,7 @@ async def _process_listing(listing: dict):
 
     raw_images = listing.get("images", [])
     images_json = json.dumps(raw_images) if isinstance(raw_images, list) else "[]"
+    external_id = listing.get("external_id", "")
 
     async with AsyncSessionLocal() as session:
 

@@ -1,12 +1,35 @@
 import base64
 import json
 import logging
+from datetime import date
 
 import httpx
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Teto diário de chamadas de IA — protege contra estouro de custo ───────────
+_MAX_AI_CALLS_PER_DAY = 400
+_ai_calls_today = 0
+_ai_calls_date = date.today()
+
+
+def _ai_budget_ok() -> bool:
+    global _ai_calls_today, _ai_calls_date
+    today = date.today()
+    if today != _ai_calls_date:
+        _ai_calls_date = today
+        _ai_calls_today = 0
+    if _ai_calls_today >= _MAX_AI_CALLS_PER_DAY:
+        logger.warning(f"[Budget] Teto diário de {_MAX_AI_CALLS_PER_DAY} chamadas atingido — usando mock")
+        return False
+    return True
+
+
+def _count_ai_call():
+    global _ai_calls_today
+    _ai_calls_today += 1
 
 def _mock_mode() -> bool:
     return not settings.gemini_api_key and not settings.anthropic_api_key
@@ -80,32 +103,13 @@ def _parse_json(text: str) -> dict:
 
 GEMINI_MODEL = "gemini-2.0-flash-lite"
 
-_SONNET = "claude-sonnet-4-6"
-_HAIKU  = "claude-haiku-4-5-20251001"
-
-# Sonnet apenas para ícones absolutos COM certificação no mesmo título.
-# Qualquer lenda sem PSA/Beckett/COA → Haiku (muito mais barato, qualidade suficiente).
-_SONNET_REQUIRED = [
-    "psa", "beckett", "jsa",  # certificação de terceiros reconhecida
-]
-_ICON_NAMES = [
-    "pelé", "pele", "maradona", "michael jordan", "kobe bryant", "garrincha",
-]
-
-
-def _select_model(listing: dict) -> str:
-    title = (listing.get("title") or "").lower()
-    has_cert = any(s in title for s in _SONNET_REQUIRED)
-    has_icon = any(s in title for s in _ICON_NAMES)
-    if has_cert and has_icon:
-        return _SONNET
-    return _HAIKU
+_HAIKU = "claude-haiku-4-5-20251001"
 
 
 async def _gemini_text(prompt: str) -> str:
     from google import genai
     client = genai.Client(api_key=settings.gemini_api_key)
-    response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+    response = await client.aio.models.generate_content(model=GEMINI_MODEL, contents=prompt)
     return response.text
 
 
@@ -118,7 +122,7 @@ async def _gemini_vision(images_b64: list[tuple[str, str]], prompt: str) -> str:
         for data, mime in images_b64
     ]
     parts.append(prompt)
-    response = client.models.generate_content(model=GEMINI_MODEL, contents=parts)
+    response = await client.aio.models.generate_content(model=GEMINI_MODEL, contents=parts)
     return response.text
 
 
@@ -129,21 +133,6 @@ async def _call_anthropic_text(prompt: str, model: str = _HAIKU) -> str:
         model=model,
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
-    )
-    return msg.content[0].text
-
-
-async def _call_anthropic_vision(images_b64: list[tuple[str, str]], prompt: str, model: str = _HAIKU) -> str:
-    import anthropic
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    content = [
-        {"type": "image", "source": {"type": "base64", "media_type": m, "data": d}}
-        for d, m in images_b64
-    ]
-    content.append({"type": "text", "text": prompt})
-    msg = await client.messages.create(
-        model=model, max_tokens=512,
-        messages=[{"role": "user", "content": content}],
     )
     return msg.content[0].text
 
@@ -168,6 +157,10 @@ async def extract_listing_data(listing: dict) -> dict:
         logger.debug(f"[AI] Sem sinal auth — skip AI: {listing.get('title','')[:50]}")
         return _mock_extract(listing)
 
+    # Teto diário de custo — estourou, volta pro mock (heurística por título)
+    if not _ai_budget_ok():
+        return _mock_extract(listing)
+
     # Limita descrição a 400 chars para economizar tokens de input
     prompt = EXTRACT_PROMPT.format(
         title=listing.get("title", ""),
@@ -175,18 +168,26 @@ async def extract_listing_data(listing: dict) -> dict:
         price=listing.get("price", 0),
     )
 
-    # Anthropic Haiku — rápido e barato. Sonnet apenas para ícones absolutos com COA/PSA.
+    # Gemini Flash Lite primeiro (~13x mais barato que Haiku); Haiku só como fallback
     text = None
-    if settings.anthropic_api_key:
-        model = _select_model(listing)
+    if settings.gemini_api_key:
         try:
-            text = await _call_anthropic_text(prompt, model)
-            logger.debug(f"[AI] Anthropic OK ({model})")
+            text = await _gemini_text(prompt)
+            _count_ai_call()
+            logger.debug("[AI] Gemini OK")
         except Exception as e:
-            logger.warning(f"[AI] Anthropic falhou: {e}")
+            logger.warning(f"[AI] Gemini falhou: {e}")
+
+    if text is None and settings.anthropic_api_key:
+        try:
+            text = await _call_anthropic_text(prompt, _HAIKU)
+            _count_ai_call()
+            logger.debug("[AI] Haiku fallback OK")
+        except Exception as e:
+            logger.warning(f"[AI] Haiku fallback falhou: {e}")
 
     if text is None:
-        logger.warning("[AI] Anthropic falhou — usando mock")
+        logger.warning("[AI] Todas as APIs falharam — usando mock")
         return _mock_extract(listing)
 
     try:
@@ -217,9 +218,12 @@ async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
     if not _needs_vision:
         return {"authenticity_score": 55, "likely_fake": False, "visual_red_flags": []}
 
+    if not _ai_budget_ok():
+        return {"authenticity_score": 50, "likely_fake": False, "visual_red_flags": []}
+
     images_b64 = []
     async with httpx.AsyncClient(timeout=15) as client:
-        for url in image_urls[:2]:  # máx 2 imagens — reduz custo
+        for url in image_urls[:1]:  # 1 imagem basta para triagem — corta custo pela metade
             try:
                 resp = await client.get(url)
                 if resp.status_code == 200:
@@ -232,20 +236,16 @@ async def analyze_images(image_urls: list, listing: dict | None = None) -> dict:
     if not images_b64:
         return {"authenticity_score": 30, "likely_fake": False, "visual_red_flags": ["IMAGES_UNAVAILABLE"]}
 
-    # Gemini Flash Lite para visão — ~10x mais barato que Haiku, qualidade equivalente
+    # Visão APENAS no Gemini Flash Lite. Sem fallback pro Haiku Vision —
+    # imagem no Haiku custa ~10x mais; se o Gemini falhar, seguimos sem visão.
     text = None
     if settings.gemini_api_key:
         try:
             text = await _gemini_vision(images_b64, VISION_PROMPT)
+            _count_ai_call()
             logger.debug("[Vision] Gemini OK")
         except Exception as e:
             logger.warning(f"[Vision] Gemini falhou: {e}")
-
-    if text is None and settings.anthropic_api_key:
-        try:
-            text = await _call_anthropic_vision(images_b64, VISION_PROMPT, _HAIKU)
-        except Exception as e:
-            logger.warning(f"[Vision] Anthropic fallback falhou: {e}")
 
     if text is None:
         return {"authenticity_score": 50, "likely_fake": False, "visual_red_flags": []}
