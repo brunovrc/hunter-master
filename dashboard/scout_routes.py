@@ -23,6 +23,7 @@ from dashboard.auth import require_user
 from database.db import AsyncSessionLocal
 from database.models import ScoutEvaluation, ScoutQuestion, ScoutSession
 from scout.analyzer import ask_followup, evaluate_jersey
+from scout.comparables import find_comparables
 from scout.pricing import build_scout_result
 
 logger = logging.getLogger(__name__)
@@ -197,6 +198,21 @@ async def evaluate(
 # Deixa o usuário pedir mais detalhes sobre uma avaliação já feita, sem
 # precisar tirar foto de novo — reaproveita as mesmas fotos + contexto salvo.
 
+# Termos que, se mencionados na pergunta, valem a pena somar na busca de
+# comparáveis (diferenciam preço). Frase inteira NÃO — vira ruído na busca.
+_CONTEXT_KEYWORDS = [
+    "centenário", "centenario", "aniversário", "aniversario", "elenco",
+    "squad", "edição limitada", "edicao limitada", "numerada", "final",
+    "campeão", "campeao", "libertadores", "mundial", "copa",
+]
+
+
+def _extract_context_keywords(question: str) -> str:
+    q = question.lower()
+    found = [kw for kw in _CONTEXT_KEYWORDS if kw in q]
+    return " ".join(found[:3])
+
+
 def _decode_stored_images(images_json: str) -> list[tuple[bytes, str]]:
     import base64
     data_uris = json.loads(images_json) if images_json else []
@@ -231,13 +247,29 @@ async def ask_about_evaluation(request: Request, evaluation_id: int, question: s
             "ai_notes": row.ai_notes,
         }
 
-        answer = await ask_followup(images, context, question)
+        # Mesma base de termos que já funciona na avaliação inicial — NÃO
+        # jogar a pergunta inteira na busca (frase longa vira ruído e zera
+        # os resultados do Vinted). Só extrai palavras-chave reconhecíveis
+        # da pergunta que ajudam a refinar (ex: "centenário", "elenco").
+        squad_term = "elenco autografado squad signed" if row.is_autographed and not row.player_name else ""
+        keyword_term = _extract_context_keywords(question)
+        comparables = await find_comparables(row.player_name, row.club, row.year_era, squad_term, keyword_term)
+
+        answer = await ask_followup(
+            images, context, question,
+            comparables=[c.model_dump() for c in comparables],
+        )
 
         q_row = ScoutQuestion(evaluation_id=evaluation_id, question=question, answer=answer)
         session.add(q_row)
         await session.commit()
 
-    return JSONResponse({"ok": True, "question": question, "answer": answer})
+    return JSONResponse({
+        "ok": True,
+        "question": question,
+        "answer": answer,
+        "comparables": [c.model_dump() for c in comparables],
+    })
 
 
 @router.get("/scout/api/evaluation/{evaluation_id}/questions")

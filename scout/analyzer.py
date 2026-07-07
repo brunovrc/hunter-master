@@ -74,9 +74,19 @@ COA: {has_coa}
 Autenticidade: {authenticity_score}/100
 Observações anteriores: {ai_notes}
 
-O usuário tem uma pergunta de acompanhamento sobre esta MESMA camisa. Responda em português, \
-direto e objetivo, baseado no que você vê nas fotos e no contexto acima. Se a pergunta pedir \
-algo que não dá pra confirmar pelas fotos disponíveis, diga isso claramente em vez de inventar.
+ANÚNCIOS REAIS PARECIDOS ENCONTRADOS AGORA (banco próprio + busca ao vivo no Vinted):
+{comparables}
+
+O usuário tem uma pergunta de acompanhamento sobre esta MESMA camisa. Regras da resposta:
+- Você JÁ TEM acesso a comparáveis reais (lista acima) — não diga "não consigo buscar na \
+internet" ou "não tenho acesso a plataformas de leilão". Use os números da lista para \
+sustentar sua resposta. Se a lista vier vazia, diga isso em uma frase e siga com o que \
+souber pelo contexto — não transforme isso no assunto principal da resposta.
+- Seja ASSERTIVO: dê uma faixa de valor ou resposta direta, não uma lista de "consulte X, \
+verifique Y". Uma pessoa em pé na casa do vendedor precisa de uma resposta que sirva AGORA.
+- Máximo 4-5 frases corridas ou uma lista curta de até 4 itens. Nunca escreva "##" ou \
+títulos de seção — isso é um chat, não um relatório.
+- Responda só o que foi perguntado. Não repita o que já foi dito na avaliação original.
 
 Pergunta do usuário: {question}"""
 
@@ -169,11 +179,28 @@ async def evaluate_jersey(images: list[tuple[bytes, str]], user_notes: str = "")
         return VisionResult(notes="A IA retornou um formato inesperado — revise manualmente.")
 
 
-async def ask_followup(images: list[tuple[bytes, str]], context: dict, question: str) -> str:
+def _format_comparables(comparables: list[dict] | None) -> str:
+    if not comparables:
+        return "(nenhum comparável encontrado agora)"
+    lines = [
+        f"- R${c['price']:,.0f} — {c['title']} ({c['platform']}) — {c['url']}"
+        for c in comparables
+    ]
+    return "\n".join(lines)
+
+
+async def ask_followup(
+    images: list[tuple[bytes, str]],
+    context: dict,
+    question: str,
+    comparables: list[dict] | None = None,
+) -> str:
     """
     Responde uma pergunta de acompanhamento sobre uma avaliação já feita,
     reaproveitando as mesmas fotos + o resultado da análise original como
-    contexto — sem precisar tirar foto de novo.
+    contexto — sem precisar tirar foto de novo. `comparables` são anúncios
+    reais já buscados (scout/comparables.py) — a IA usa como referência de
+    preço em vez de alegar que não tem acesso à internet.
     """
     if not settings.gemini_api_key and not settings.anthropic_api_key:
         return "Nenhuma API de IA configurada — não é possível responder agora."
@@ -187,6 +214,7 @@ async def ask_followup(images: list[tuple[bytes, str]], context: dict, question:
         has_coa=context.get("has_coa"),
         authenticity_score=context.get("authenticity_score"),
         ai_notes=context.get("ai_notes") or "(nenhuma)",
+        comparables=_format_comparables(comparables),
         question=question,
     )
 

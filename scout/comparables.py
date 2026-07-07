@@ -9,6 +9,11 @@ atrás de tier pago no Gemini e não temos como validar/depender agora):
    sem custo nenhum, sempre disponível.
 2. Busca ao vivo no Vinted — API pública, sem auth, testada e funcionando;
    dá link real de oferta disponível agora, não só histórico.
+
+find_comparables recebe uma lista de termos livre (não só jogador+clube) —
+isso importa pra itens sem jogador único identificado (ex: "elenco todo
+autografado", "centenário 1995"), onde o que diferencia o preço é o
+contexto histórico/coletivo, não um nome de jogador.
 """
 import logging
 
@@ -26,11 +31,14 @@ _VINTED_LIMIT = 4
 _VINTED_CURRENCY_TO_BRL = 5.50  # EUR
 
 
-async def _find_db_comparables(player_name: str, club: str) -> list[Comparable]:
-    if not player_name and not club:
+def _clean_terms(terms: list[str]) -> list[str]:
+    return [t.strip() for t in terms if t and t.strip()]
+
+
+async def _find_db_comparables(terms: list[str]) -> list[Comparable]:
+    if not terms:
         return []
 
-    terms = [t for t in [player_name, club] if t]
     async with AsyncSessionLocal() as session:
         q = (
             select(Listing)
@@ -53,8 +61,8 @@ async def _find_db_comparables(player_name: str, club: str) -> list[Comparable]:
     ]
 
 
-async def _find_vinted_comparables(player_name: str, club: str) -> list[Comparable]:
-    query = " ".join(t for t in [player_name, club, "signed jersey"] if t).strip()
+async def _find_vinted_comparables(terms: list[str]) -> list[Comparable]:
+    query = " ".join(terms).strip()
     if not query:
         return []
 
@@ -98,18 +106,27 @@ async def _find_vinted_comparables(player_name: str, club: str) -> list[Comparab
     return comps
 
 
-async def find_comparables(player_name: str, club: str) -> list[Comparable]:
-    """Nunca lança — combina as duas fontes, tolerando falha de qualquer uma."""
+async def find_comparables(*term_groups: str) -> list[Comparable]:
+    """
+    Aceita qualquer quantidade de termos de busca livre (jogador, clube,
+    ano/era, "elenco", palavras da pergunta do usuário, etc.) — nunca lança,
+    combina banco próprio + Vinted ao vivo, tolerando falha de qualquer uma.
+    """
+    terms = _clean_terms(list(term_groups))
+    if not terms:
+        return []
+
     db_comps: list[Comparable] = []
     vinted_comps: list[Comparable] = []
 
     try:
-        db_comps = await _find_db_comparables(player_name, club)
+        db_comps = await _find_db_comparables(terms)
     except Exception as e:
         logger.warning(f"[Scout Comparables] Busca no banco falhou: {e}")
 
     try:
-        vinted_comps = await _find_vinted_comparables(player_name, club)
+        vinted_terms = terms + (["signed jersey"] if "signed" not in " ".join(terms).lower() else [])
+        vinted_comps = await _find_vinted_comparables(vinted_terms)
     except Exception as e:
         logger.warning(f"[Scout Comparables] Busca Vinted falhou: {e}")
 

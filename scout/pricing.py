@@ -47,7 +47,11 @@ async def build_scout_result(vision: VisionResult) -> ScoutResult:
     sell_price = await get_sell_price_estimate(vision.player_name, item_type, title=title)
     sell_price *= _CONDITION_MULTIPLIER.get(vision.condition, 1.0)
 
-    comparables = await find_comparables(vision.player_name, vision.club)
+    # Sem jogador único identificado + autografada → provavelmente elenco todo
+    # assinado. "elenco"/"squad signed" é o termo que diferencia preço aqui,
+    # não um nome de jogador que a IA não conseguiu extrair.
+    squad_term = "" if vision.player_name else ("elenco autografado squad signed" if vision.is_autographed else "")
+    comparables = await find_comparables(vision.player_name, vision.club, vision.year_era, squad_term)
 
     # Réplica suspeita ou autenticidade muito baixa → não sugerir compra numérica
     if vision.replica_suspicion or vision.authenticity_score < 30:

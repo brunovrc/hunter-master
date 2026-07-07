@@ -173,10 +173,47 @@
     padding: 0 16px; font-weight: 800; font-size: 13px; cursor: pointer; white-space: nowrap;
   }
   .ask-send:disabled { opacity: .4; cursor: not-allowed; }
-  .qa-thread { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-  .qa-item { font-size: 12.5px; }
-  .qa-q { color: var(--fg1); font-weight: 700; }
-  .qa-a { color: var(--fg2); line-height: 1.5; margin-top: 3px; }
+  .ask-send .spinner {
+    width: 13px; height: 13px; border: 2px solid rgba(9,9,11,.25); border-top-color: #09090b;
+    border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: -2px;
+  }
+
+  .qa-thread { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+  .qa-item { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Bolha da pergunta — alinhada à direita, como uma mensagem enviada */
+  .qa-q-bubble {
+    align-self: flex-end; max-width: 85%;
+    background: var(--accent-lo); border: 1px solid rgba(253,224,71,.25);
+    color: var(--fg); font-size: 12.5px; font-weight: 600;
+    padding: 8px 12px; border-radius: 12px 12px 3px 12px;
+  }
+
+  /* Bolha da resposta — alinhada à esquerda */
+  .qa-a-bubble {
+    align-self: flex-start; max-width: 100%; width: 100%;
+    background: var(--card); border: 1px solid var(--border); border-radius: 3px 12px 12px 12px;
+    padding: 11px 13px; font-size: 12.5px; color: var(--fg1); line-height: 1.55;
+  }
+  .qa-a-bubble p { margin: 0 0 7px; }
+  .qa-a-bubble p:last-child { margin-bottom: 0; }
+  .qa-a-bubble ul { margin: 4px 0 8px; padding-left: 18px; }
+  .qa-a-bubble li { margin-bottom: 3px; }
+  .qa-a-bubble b { color: var(--fg); }
+
+  .qa-comp-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .qa-comp-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--card-hi); border: 1px solid var(--border-hi); border-radius: 8px;
+    padding: 7px 10px; text-decoration: none;
+  }
+  .qa-comp-item .comp-title {
+    font-size: 11px; font-weight: 600; color: var(--fg1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .qa-comp-item .comp-price { font-size: 12px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+
+  .qa-thinking { align-self: flex-start; font-size: 12px; color: var(--fg3); font-style: italic; padding: 4px 2px; }
 
   .btn-reset {
     width: 100%; margin-top: 4px; padding: 13px; border-radius: 12px;
@@ -470,7 +507,7 @@ function renderResult(r) {
         <div class="auth-bar-track"><div class="auth-bar-fill" style="width:${r.authenticity_score}%; background:${authColor(r.authenticity_score)}"></div></div>
       </div>
       <div class="badge-row">${badges.join('')}</div>
-      ${r.ai_notes ? `<div class="notes-box">${r.ai_notes}</div>` : ''}
+      ${r.ai_notes ? `<div class="notes-box">${renderMarkdownLite(r.ai_notes)}</div>` : ''}
       ${r.identified_text ? `<div class="notes-box"><b>Texto identificado:</b> ${r.identified_text}</div>` : ''}
     </div>
 
@@ -492,13 +529,62 @@ function renderResult(r) {
   document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function appendQA(question, answer) {
+// Markdown leve — só o que a IA realmente usa (negrito, listas, parágrafos).
+// Escapa HTML primeiro pra nunca injetar tag vinda da resposta da IA.
+function renderMarkdownLite(text) {
+  const lines = (text || '').split('\n');
+  let html = '';
+  let inList = false;
+  for (let raw of lines) {
+    let line = raw.trim();
+    if (!line) { if (inList) { html += '</ul>'; inList = false; } continue; }
+    line = line.replace(/^#{1,6}\s*/, '');
+    const isBullet = /^[-*]\s+/.test(line);
+    if (isBullet) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      line = line.replace(/^[-*]\s+/, '');
+    } else if (inList) {
+      html += '</ul>'; inList = false;
+    }
+    const esc = document.createElement('div');
+    esc.textContent = line;
+    let safe = esc.innerHTML.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    html += isBullet ? `<li>${safe}</li>` : `<p>${safe}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+function compsHtml(comps) {
+  if (!comps || !comps.length) return '';
+  return `<div class="qa-comp-list">${comps.map(c => `
+    <a class="qa-comp-item" href="${c.url}" target="_blank" rel="noopener">
+      <div class="comp-title">${c.title}</div>
+      <div class="comp-price">${fmtBRL(c.price)}</div>
+    </a>`).join('')}</div>`;
+}
+
+function appendQA(question, answer, comparables) {
   const thread = document.getElementById('qa-thread');
   if (!thread) return;
   const item = document.createElement('div');
   item.className = 'qa-item';
-  item.innerHTML = `<div class="qa-q">${question}</div><div class="qa-a">${answer}</div>`;
+  item.innerHTML = `
+    <div class="qa-q-bubble">${question}</div>
+    <div class="qa-a-bubble">${renderMarkdownLite(answer)}${compsHtml(comparables)}</div>
+  `;
   thread.appendChild(item);
+  item.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function appendThinking() {
+  const thread = document.getElementById('qa-thread');
+  const el = document.createElement('div');
+  el.className = 'qa-thinking';
+  el.id = 'qa-thinking-indicator';
+  el.textContent = 'Buscando comparáveis e respondendo…';
+  thread.appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
 async function askQuestion() {
@@ -508,8 +594,8 @@ async function askQuestion() {
   if (!question || !currentEvaluationId) return;
 
   btn.disabled = true;
-  const prevLabel = btn.textContent;
-  btn.textContent = '...';
+  input.value = '';
+  appendThinking();
 
   const body = new FormData();
   body.append('question', question);
@@ -517,17 +603,17 @@ async function askQuestion() {
   try {
     const r = await fetch(`/scout/api/evaluation/${currentEvaluationId}/ask`, { method: 'POST', body });
     const j = await r.json();
+    document.getElementById('qa-thinking-indicator')?.remove();
     if (r.ok && j.ok !== false) {
-      appendQA(j.question, j.answer);
-      input.value = '';
+      appendQA(j.question, j.answer, j.comparables);
     } else {
       showError(j.detail || 'Erro ao perguntar. Tente de novo.');
     }
   } catch (e) {
+    document.getElementById('qa-thinking-indicator')?.remove();
     showError('Erro de conexão ao perguntar.');
   } finally {
     btn.disabled = false;
-    btn.textContent = prevLabel;
   }
 }
 
