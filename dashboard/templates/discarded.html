@@ -22,7 +22,7 @@
       <!-- Image -->
       <div class="listing-img-wrap">
         {% if item.thumbnail %}
-        <img src="{{ item.thumbnail }}" alt="{{ item.title[:40] }}" class="listing-img"
+        <img src="{{ item.thumbnail }}" alt="{{ item.title[:40] }}" class="listing-img" referrerpolicy="no-referrer"
              onerror="this.parentElement.innerHTML='<div class=\'listing-img-placeholder\'>👕</div>'">
         {% else %}
         <div class="listing-img-placeholder">👕</div>

@@ -46,11 +46,25 @@ _NEW_COLUMNS = [
 
 _SQLITE_NEW_COLUMNS = [s.replace(" IF NOT EXISTS", "") for s in _NEW_COLUMNS]
 
+# Correções de dados pontuais (não são schema, são bugs já corrigidos no
+# código mas que deixaram registros ruins salvos). Idempotentes — depois de
+# rodar uma vez o WHERE não bate mais em nada, então é seguro rodar sempre.
+_DATA_FIXES = [
+    # 800xN não é um preset válido no CDN do Enjoei (retornava 404) — só
+    # presets quadrados (WxW) funcionam sob demanda. Ver scrapers/enrichment.py.
+    "UPDATE listings SET images = REPLACE(images, '/800xN/', '/800x800/') WHERE images LIKE '%/800xN/%'",
+]
+
 
 async def _run_migrations():
     stmts = _SQLITE_NEW_COLUMNS if _is_sqlite else _NEW_COLUMNS
     async with engine.begin() as conn:
         for sql in stmts:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                pass
+        for sql in _DATA_FIXES:
             try:
                 await conn.execute(text(sql))
             except Exception:

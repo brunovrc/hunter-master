@@ -60,8 +60,11 @@ async def _enrich_enjoei(page, url: str) -> tuple[str, list[str]]:
             hash_part = src.rsplit("/", 1)[-1]
             if hash_part and hash_part not in seen_hashes:
                 seen_hashes.add(hash_part)
-                # 800xN = resolução alta o suficiente pra IA ler etiqueta/COA
-                images.append(src.replace("/100x100/", "/800xN/"))
+                # 800x800 = resolução alta o suficiente pra IA ler etiqueta/COA.
+                # "800xN" (testado antes) devolve 404 no CDN do Enjoei — só os
+                # presets quadrados (WxW) funcionam sob demanda; "xN" só existe
+                # pros tamanhos que o próprio frontend do Enjoei já gerou.
+                images.append(src.replace("/100x100/", "/800x800/"))
             if len(images) >= _MAX_IMAGES:
                 break
 
